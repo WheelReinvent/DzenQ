@@ -1,2 +1,2 @@
 # DzenQ
-An open-source, secure, decentralized protocol for generating and sharing Certificates of Appreciation for those you value.
+An open-source, secure, decentralized protocol for generating and sharing Certificates of Appreciation for those you value. It requires no servers or intermediary trusted agency, as it uses cryptographic keys to verify transactions and ensure consistency. Generated certificates can be shared via any publicly available channels (e.g., messaging apps). No high-resource computation is required—no mining, no blockchain.
