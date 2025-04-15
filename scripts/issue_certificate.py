@@ -25,6 +25,7 @@ def main():
     parser.add_argument("message", help="Thank you message")
     parser.add_argument("--recipient-aid", help="Recipient's KERI identifier (if known)")
     parser.add_argument("--dir", default="./keri_data", help="Base directory for KERI data")
+    parser.add_argument("--export", help="Export the certificate to a portable format file")
     
     args = parser.parse_args()
     
@@ -33,14 +34,24 @@ def main():
     if not issuer.load():
         print(f"Could not load issuer identity '{args.issuer}'")
         print(f"Create it first with: python scripts/create_identity.py {args.issuer}")
-        return
+        return 1
     
     # Create and issue the certificate
     cert_handler = ThankYouCertificate(args.dir)
     cert_file = cert_handler.issue(issuer, args.recipient, args.message, args.recipient_aid)
     
-    if cert_file:
-        print("\nCertificate issued successfully!")
+    if not cert_file:
+        print("Failed to issue certificate")
+        return 1
+        
+    # Export the certificate if requested
+    if args.export and cert_file:
+        export_file = cert_handler.export_certificate(cert_file, args.export)
+        if export_file:
+            print(f"Certificate exported to: {args.export}")
+    
+    print("\nCertificate issued successfully!")
+    return 0
     
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

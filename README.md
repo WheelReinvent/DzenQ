@@ -1,134 +1,110 @@
-# Thank You Certificate System
+# Appreciation Protocol - DzenQ
 
-A decentralized system for issuing, verifying, and acknowledging certificates of appreciation using KERI (Key Event Receipt Infrastructure).
+A decentralized, secure system for issuing and verifying Certificates of Appreciation using KERI.
 
 ## Overview
 
-This project implements a secure, decentralized system for issuing Thank You certificates without relying on a central authority or blockchain. It uses KERI's cryptographic principles to ensure:
+The Appreciation Protocol leverages KERI (Key Event Receipt Infrastructure) to create a fully decentralized system for issuing and verifying certificates of appreciation. This implementation provides:
 
-- **Authenticity**: Certificates are cryptographically signed by the issuer
-- **Verification**: Anyone can verify the validity of a certificate
-- **Immutability**: Certificate history is maintained through KERI's Key Event Logs (KEL)
-- **Acknowledgment**: Recipients can acknowledge certificates, adding them to their own history
-
-## Features
-
-- Create and manage identities with secure key generation
-- Issue Thank You certificates with custom messages
-- Verify received certificates cryptographically
-- Acknowledge certificates to add them to recipient's history
-- Support for key rotation to maintain long-term security
-- Completely decentralized operation - no server or blockchain required
+- Full KERI integration with proper KEL and KERL storage
+- Witness support for enhanced security and availability
+- Cryptographically secure certificates with tamper-proof verification
+- No central authority, blockchain, or trusted third parties
+- Key rotation capabilities for long-term identity management
+- Import/export functionality for certificate portability
 
 ## Installation
 
-1. Clone this repository
-2. Install dependencies:
-
 ```bash
+# Clone the repository
+git clone https://github.com/yourusername/DzenQ.git
+cd DzenQ
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
 ## Usage
 
-### Scripts
-
-The system provides several convenient scripts in the `scripts` directory:
-
-#### Create an Identity
+### Identity Management
 
 ```bash
-python scripts/create_identity.py issuer
-python scripts/create_identity.py recipient
+# Create a new identity
+python scripts/create_identity.py my_identity
+
+# Create an identity with witness support
+python scripts/create_identity.py my_identity --witnesses 3 --witness-urls tcp://witness1.example.com:5620 tcp://witness2.example.com:5620 tcp://witness3.example.com:5620
+
+# Rotate keys for an identity
+python scripts/rotate_keys.py my_identity
 ```
 
-#### Issue a Certificate
+### Certificate Operations
 
 ```bash
-python scripts/issue_certificate.py issuer "John Doe" "Thank you for your contribution!"
-```
+# Issue a certificate
+python scripts/issue_certificate.py my_identity "Recipient Name" "Thank you message"
 
-#### Verify a Certificate
+# Verify a certificate
+python scripts/verify_certificate.py /path/to/certificate.json --recipient recipient_identity
 
-```bash
-python scripts/verify_certificate.py /path/to/certificate.json --recipient recipient
-```
+# Acknowledge a certificate
+python scripts/verify_certificate.py /path/to/certificate.json --recipient recipient_identity --acknowledge
 
-#### Acknowledge a Certificate
+# List all certificates
+python scripts/list_certificates.py
 
-```bash
-python scripts/verify_certificate.py /path/to/certificate.json --recipient recipient --acknowledge
-```
-
-#### Rotate Keys
-
-```bash
-python scripts/rotate_keys.py issuer
-```
-
-#### List Certificates
-
-```bash
+# List with details
 python scripts/list_certificates.py --details
+
+# List acknowledgments
+python scripts/list_certificates.py --acks
 ```
 
-### Example Workflow
-
-You can run a complete example workflow with:
+### Export and Import
 
 ```bash
-python keri_example.py
+# Export a certificate
+python scripts/list_certificates.py --export 1:exported_cert.json
+
+# Import and verify a certificate
+python scripts/verify_certificate.py /path/to/certificate.json --import exported_cert.json
 ```
 
-This demonstrates:
-1. Creating identities for both issuer and recipient
-2. Issuing a certificate
-3. Verifying the certificate
-4. Acknowledging receipt
-5. Rotating keys
-6. Listing certificates
+## Complete Example
 
-## Library Usage
+Run the complete example workflow:
 
-You can also use the library directly in your own code:
+```bash
+# Run in local mode (no witnesses)
+python keri_example.py --clean
 
-```python
-from adapter.keri.identity import Identity
-from adapter import ThankYouCertificate
-
-# Create identities
-issuer = Identity("issuer")
-issuer.create()
-
-recipient = Identity("recipient")
-recipient.create()
-
-# Issue certificate
-cert_handler = ThankYouCertificate()
-cert_file = cert_handler.issue(issuer, "John Doe", "Thank you!")
-
-# Verify and acknowledge
-verification = cert_handler.verify(cert_file, recipient)
-if verification["valid"]:
-    cert_handler.acknowledge(cert_file, recipient)
+# Run with witness support
+python keri_example.py --clean --use-witnesses
 ```
 
-## Technical Details
+## Architecture
 
-This implementation uses:
+This implementation uses the KERI (Key Event Receipt Infrastructure) framework for secure identity management:
 
-- **KERI** (Key Event Receipt Infrastructure): For identity management and event verification
-- **Ed25519**: For digital signatures
-- **JSON**: For data serialization
+- `adapter/keri/identity.py`: Manages KERI identities with key generation and rotation capabilities
+- `adapter/keri/certificate.py`: Implements certificate issuance, verification, and acknowledgment
+- `scripts/`: Command-line tools for all certificate operations
 
-All data is stored locally in the `keri_data` directory by default.
+### Storage
+
+- All KERI data is stored in the `keri_data` directory by default
+- Key Event Logs (KEL) store the identity events
+- Key Event Receipt Logs (KERL) store receipts and acknowledgments
+- Certificates are stored in JSON format
 
 ## Security Considerations
 
-- Private keys are stored securely but should be protected
-- Key rotation is supported and recommended periodically
-- The system provides cryptographic verification but relies on proper key management
+- Private keys are stored locally and must be protected
+- Consider using a secure key management solution for production
+- For high-security deployments, use multiple witnesses
+- Backup your KERI database directory regularly
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the LICENSE file for details.
