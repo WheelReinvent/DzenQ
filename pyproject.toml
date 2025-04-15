@@ -1,0 +1,17 @@
+[project]
+name = "dzenq"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "liubomyr.ivanitskyi",email = "liubomyr.ivanitskyi@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12.2,<4.0.0"
+dependencies = [
+    "keri (>=1.2.6,<2.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
