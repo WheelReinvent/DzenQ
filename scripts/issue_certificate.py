@@ -4,9 +4,15 @@
 import os
 import sys
 import argparse
+import platform
 
 # Add parent directory to path so we can import adapter.keri module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Apply Windows fixes before importing any KERI modules
+if platform.system() == 'Windows':
+    from adapter.keri.windows_fix import apply_windows_fixes
+    apply_windows_fixes()
 
 from adapter.keri.identity import Identity
 from adapter.keri.certificate import ThankYouCertificate

@@ -1,9 +1,17 @@
 # identity.py - KERI identity creation and management
 import os
 import json
-from keri.core import coring, eventing
+import platform
+
+# Apply Windows fixes before importing KERI modules
+if platform.system() == 'Windows':
+    from adapter.keri.windows_fix import apply_windows_fixes
+    apply_windows_fixes()
+
+from keri.core import coring, eventing, serdering
 from keri.app import habbing, keeping
-from keri.db import dbing
+# Update import to use basing instead of dbing for Baser class
+from keri.db import basing
 
 
 class Identity:
@@ -41,24 +49,22 @@ class Identity:
                             temp=False)
         
         # Setup baser for database
-        db = dbing.Baser(name=self.name, 
+        db = basing.Baser(name=self.name, 
                          base=self.base_dir,
                          temp=False)
         
-        # Create habitat with:
-        # isith=1, nsith=1: Signature threshold of 1-of-1 keys
-        # icount=1: Initial number of keys
-        # ncount=1: Number of next pre-rotated keys
-        self.hab = habbing.Habitat(
+        # Create habitat
+        # We use Habery to create a Hab now, with simplified parameters
+        habery = habbing.Habery(name=self.name, base=self.base_dir, temp=False)
+        
+        # Create the habitat using the Habery
+        self.hab = habery.makeHab(
             name=self.name,
-            ks=ks,
-            db=db,
-            isith=1,
-            icount=1,
-            nsith=1,
-            ncount=1,
             transferable=transferable,
-            temp=False
+            isith=1,    # Signature threshold of 1-of-1 keys
+            icount=1,   # Initial number of keys
+            nsith=1,    # Next signature threshold
+            ncount=1    # Number of next pre-rotated keys
         )
         
         # Save identity information to file
@@ -93,18 +99,16 @@ class Identity:
                           temp=False)
         
         # Setup baser for database
-        db = dbing.Baser(name=self.name, 
+        db = basing.Baser(name=self.name, 
                        base=self.base_dir,
                        temp=False)
                        
         # Load habitat from existing database
         try:
-            self.hab = habbing.Habitat(
-                name=self.name,
-                ks=ks,
-                db=db,
-                temp=False
-            )
+            # Create a Habery to load an existing Hab
+            habery = habbing.Habery(name=self.name, base=self.base_dir, temp=False)
+            # The loaded Hab should already be in habery.habs
+            self.hab = next(iter(habery.habs.values()), None)
             print(f"Identity loaded: {self.name}")
             print(f"Identifier (AID): {self.hab.pre}")
             return True
@@ -150,7 +154,7 @@ class Identity:
         for event_dig in self.hab.db.getKelIter(self.hab.pre):
             event_bytes = self.hab.db.getEvt(diger=coring.Diger(qb64=event_dig))
             if event_bytes:
-                serder = coring.Serder(raw=event_bytes)
+                serder = serdering.SerderKERI(raw=event_bytes)
                 events.append(serder.ked)
         
         return events
