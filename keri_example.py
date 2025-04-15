@@ -2,6 +2,12 @@
 # keri_example.py - Example workflow for the KERI Thank You Certificate system
 
 import os
+import platform
+
+# Apply Windows fixes before importing any KERI modules
+if platform.system() == 'Windows':
+    from adapter.keri.windows_fix import apply_windows_fixes
+    apply_windows_fixes()
 
 from adapter.keri.certificate import ThankYouCertificate
 from adapter.keri.identity import Identity
