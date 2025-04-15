@@ -2,10 +2,9 @@
 # keri_example.py - Example workflow for the KERI Thank You Certificate system
 
 import os
-import sys
 
-from keri.identity import Identity
-from keri.certificate import ThankYouCertificate
+from adapter.keri.certificate import ThankYouCertificate
+from adapter.keri.identity import Identity
 
 def main():
     # Base directory for KERI data

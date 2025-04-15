@@ -5,11 +5,11 @@ import os
 import sys
 import argparse
 
-# Add parent directory to path so we can import keri module
+# Add parent directory to path so we can import adapter.keri module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from keri.identity import Identity
-from keri.certificate import ThankYouCertificate
+from adapter.keri.identity import Identity
+from adapter.keri.certificate import ThankYouCertificate
 
 def main():
     # Parse command line arguments

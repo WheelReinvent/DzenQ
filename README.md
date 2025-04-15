@@ -93,8 +93,8 @@ This demonstrates:
 You can also use the library directly in your own code:
 
 ```python
-from keri.identity import Identity
-from keri.certificate import ThankYouCertificate
+from adapter.keri.identity import Identity
+from adapter import ThankYouCertificate
 
 # Create identities
 issuer = Identity("issuer")
