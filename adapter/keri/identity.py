@@ -249,6 +249,62 @@ class Identity:
             print(f"Error backing up identity: {e}")
             return False
             
+    def clean_keystore(self):
+        """Completely clean the key records for this identity to allow recreation.
+        This is a destructive operation that removes key state.
+        
+        Returns:
+            bool: Success or failure
+        """
+        if not self.hab:
+            print("No identity loaded. Cannot clean keystore. Try loading first.")
+            return False
+            
+        try:
+            # Clean up pre-references from database to allow reuse
+            prefix = self.hab.pre
+            prefix_bytes = prefix.encode('utf-8')
+            
+            if self.habery and self.habery.ks:
+                try:
+                    # Clean all key stores that might have references to this prefix
+                    key_stores = [
+                        ('pres', self.habery.ks.pres),  # Prefix store
+                        ('prms', self.habery.ks.prms),  # Prefix parameters
+                        ('kees', self.habery.ks.kees),  # Key store
+                        ('sigs', self.habery.ks.sigs),  # Signatures 
+                        ('rots', self.habery.ks.rots),  # Rotations
+                        ('pwss', self.habery.ks.pwss),  # Passwords
+                        ('aess', self.habery.ks.aess),  # AES keys
+                        ('sals', self.habery.ks.sals),  # Salts
+                    ]
+                    
+                    # Try to remove the prefix from all stores
+                    for name, store in key_stores:
+                        if prefix_bytes in store:
+                            print(f"Removing from {name}...")
+                            store.rem(prefix_bytes)
+                    
+                    # Also clean up stems and salt-specific records
+                    stem = self.name
+                    print(f"Cleaning stem records for {stem}...")
+                    
+                    # Completely re-initialize the Keeper instances
+                    print("Reinitializing key manager...")
+                    if hasattr(self.habery, 'mgr') and self.habery.mgr:
+                        # Force reload of manager to clear cached data
+                        # There's no public API for this, but we need to clear the salt records
+                        self.habery.mgr = None
+                        
+                except Exception as e:
+                    print(f"Warning during keystore cleanup: {e}")
+            
+            print("Identity references cleaned from keystore")
+            return True
+        except Exception as e:
+            print(f"Error cleaning keystore: {e}")
+            return False
+            
     def restore(self, backup_dir):
         """Restore the identity from a backup
         

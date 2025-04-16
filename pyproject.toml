@@ -17,6 +17,7 @@ dependencies = [
 
 [project.scripts]
 appreciate = "cli:app"
+tnx = "cli:app"
 
 [project.urls]
 "Homepage" = "https://github.com/liubomyr-ivanitskyi/DzenQ"

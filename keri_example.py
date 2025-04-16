@@ -69,20 +69,26 @@ def main(clean=False, witness_urls=None, use_witnesses=False):
     
     # 3. Verify the certificate
     print("\n3. Verifying the certificate...")
-    verification = cert_handler.verify(cert_file, recipient)
-    
-    # 4. Acknowledge the certificate
-    if verification["valid"]:
-        print("\n4. Acknowledging the certificate...")
-        cert_handler.acknowledge(cert_file, recipient)
+    if cert_file:
+        verification = cert_handler.verify(cert_file, recipient)
         
-        # List acknowledgments
-        print("\n4.1 Listing acknowledgments...")
-        acks = cert_handler.list_acknowledgments()
-        if acks:
-            print(f"Found {len(acks)} acknowledgment(s):")
-            for ack in acks:
-                print(f"  - {ack}")
+        # 4. Acknowledge the certificate
+        if verification and verification.get("valid", False):
+            print("\n4. Acknowledging the certificate...")
+            cert_handler.acknowledge(cert_file, recipient)
+            
+            # List acknowledgments
+            print("\n4.1 Listing acknowledgments...")
+            acks = cert_handler.list_acknowledgments()
+            if acks:
+                print(f"Found {len(acks)} acknowledgment(s):")
+                for ack in acks:
+                    print(f"  - {ack}")
+        else:
+            print("Certificate verification failed, skipping acknowledgment")
+    else:
+        print("No certificate was issued, skipping verification and acknowledgment")
+        verification = {"valid": False}
     
     # 5. Rotate keys for the issuer
     print("\n5. Rotating keys for the issuer...")

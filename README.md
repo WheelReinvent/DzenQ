@@ -29,62 +29,117 @@ chmod +x appreciate.py
 
 ## Usage
 
-The Appreciation Protocol provides a unified command-line interface for all operations:
+The Appreciation Protocol provides a unified command-line interface with multiple ways to run it:
 
 ```bash
-# Show help and available commands
+# Using the short command (recommended)
+./tnx --help
+
+# Using Python with the short script
+python tnx.py --help
+
+# Using the original script
 python appreciate.py --help
+```
+
+### Installing as a System-Wide Command
+
+To use the `tnx` command anywhere in your system:
+
+```bash
+# Install the package in development mode
+pip install -e .
+
+# Now you can use the command directly
+tnx --help
 ```
 
 ### Identity Management
 
 ```bash
 # Create a new identity
-python appreciate.py identity create my_identity
+tnx identity create my_identity
 
 # Create an identity with witness support
-python appreciate.py identity create my_identity --witnesses 3 --witness-urls tcp://witness1.example.com:5620 tcp://witness2.example.com:5620 tcp://witness3.example.com:5620
+tnx identity create my_identity --witnesses 3 --witness-urls tcp://witness1.example.com:5620 tcp://witness2.example.com:5620 tcp://witness3.example.com:5620
 
 # Rotate keys for an identity
-python appreciate.py identity rotate my_identity
+tnx identity rotate my_identity
 
 # Remove an identity
-python appreciate.py identity remove my_identity
+tnx identity remove my_identity
 
 # Remove an identity with backup
-python appreciate.py identity remove my_identity --backup ./backups
+tnx identity remove my_identity --backup ./backups
+
+# Remove an identity without cleaning the keystore (not recommended)
+tnx identity remove my_identity --no-clean-keys
 ```
+
+### Administrative Commands
+
+For situations where normal operations fail or you need to start fresh:
+
+```bash
+# Reset the entire KERI database (use with extreme caution!)
+tnx admin reset-db
+
+# Reset with immediate confirmation (no interactive prompt)
+tnx admin reset-db --confirm
+
+# Reset only project data (preserve global KERI data)
+tnx admin reset-db --no-clean-global
+```
+
+#### Dealing with KERI's Global Data
+
+KERI sometimes stores data in global locations like `C:/usr/local/var/keri` on Windows or `/usr/local/var/keri` on Unix systems. This can cause issues when trying to recreate identities with the same name. Our tools automatically handle this:
+
+1. When removing an identity: `--clean-global` flag (on by default) cleans related global data
+2. When resetting the database: `--clean-global` flag (on by default) cleans all global KERI data
+
+If you encounter issues recreating identities, try these options in order:
+
+```bash
+# Option 1: Force remove a specific identity (even if it can't be loaded)
+tnx admin force-remove identity-name --confirm
+
+# Option 2: Reset the entire database as a last resort
+tnx admin reset-db --confirm
+```
+
+The `force-remove` command is especially useful when normal remove operations fail because it searches for and removes all data related to an identity name, even if KERI cannot load the identity normally due to corrupted or locked files.
 
 ### Certificate Operations
 
 ```bash
 # Issue a certificate
-python appreciate.py certificate issue my_identity "Recipient Name" "Thank you message"
+tnx certificate issue my_identity "Recipient Name" "Thank you message"
 
 # Verify a certificate
-python appreciate.py certificate verify /path/to/certificate.json --recipient recipient_identity
+tnx certificate verify /path/to/certificate.json --recipient recipient_identity
 
 # Acknowledge a certificate
-python appreciate.py certificate verify /path/to/certificate.json --recipient recipient_identity --acknowledge
+tnx certificate verify /path/to/certificate.json --recipient recipient_identity --acknowledge
 
 # List all certificates
-python appreciate.py certificate list
+tnx certificate list
 
 # List with details
-python appreciate.py certificate list --details
+tnx certificate list --details
 
 # List acknowledgments
-python appreciate.py certificate list --acks
+tnx certificate list --acks
 ```
 
 ### Export and Import
 
 ```bash
 # Export a certificate
-python appreciate.py certificate list --export 1:exported_cert.json
+tnx certificate list --export 1:exported_cert.json
 
 # Import and verify a certificate
-python appreciate.py certificate verify /path/to/certificate.json --import exported_cert.json
+tnx certificate verify /path/to/certificate.json --import exported_cert.json
 ```
 
 ### Complete Example
@@ -93,10 +148,10 @@ Run the complete example workflow:
 
 ```bash
 # Run in local mode (no witnesses)
-python appreciate.py example --clean
+tnx example --clean
 
 # Run with witness support
-python appreciate.py example --clean --use-witnesses
+tnx example --clean --use-witnesses
 ```
 
 ## Architecture

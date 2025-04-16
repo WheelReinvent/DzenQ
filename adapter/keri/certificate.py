@@ -49,12 +49,13 @@ class ThankYouCertificate:
             print("Issuer identity not loaded. Use create() or load() first.")
             return None
             
-        # Create certificate content
+        # Create certificate content - using simple strings for better KERI compatibility
         cert_content = {
-            "recipient_name": recipient_name,
-            "recipient_aid": recipient_aid,
-            "message": message,
-            "issued_at": datetime.datetime.utcnow().isoformat() + "Z"  # ISO 8601 UTC
+            "t": "certificate",  # type marker to identify this data
+            "r": recipient_name,  # recipient name - short key for compatibility
+            "a": recipient_aid if recipient_aid else "",  # recipient AID - empty string if not provided
+            "m": message,  # message
+            "i": datetime.datetime.utcnow().isoformat() + "Z"  # ISO 8601 UTC timestamp
         }
         
         try:
@@ -62,12 +63,25 @@ class ThankYouCertificate:
             cert_id = hashlib.sha256(json.dumps(cert_content, sort_keys=True).encode()).hexdigest()[:24]
             
             # Create an interaction event with the certificate as data
-            serder = eventing.interact(
-                pre=issuer_identity.hab.pre,
-                dig=issuer_identity.hab.kever.serder.said,
-                sn=issuer_identity.hab.kever.sn + 1,
-                data=[cert_content]
-            )
+            try:
+                # First attempt using the certificate directly as data
+                serder = eventing.interact(
+                    pre=issuer_identity.hab.pre,
+                    dig=issuer_identity.hab.kever.serder.said,
+                    sn=issuer_identity.hab.kever.sn + 1,
+                    data=[cert_content]
+                )
+            except Exception as e:
+                print(f"Warning: Adjusting certificate format due to: {e}")
+                # KERI may have encoding issues with complex dictionary structures
+                # Convert to a simpler string format for the event
+                cert_string = json.dumps(cert_content)
+                serder = eventing.interact(
+                    pre=issuer_identity.hab.pre,
+                    dig=issuer_identity.hab.kever.serder.said,
+                    sn=issuer_identity.hab.kever.sn + 1,
+                    data=cert_string  # Use a simple string instead of a nested structure
+                )
             
             # Sign the event using the issuer's keys
             sigers = issuer_identity.hab.sign(ser=serder.raw, verfers=issuer_identity.hab.kever.verfers, indexed=False)
@@ -84,11 +98,20 @@ class ThankYouCertificate:
                 sigs.append(siger.qb64)
             
             # Prepare certificate data for storage
+            # Store both the short-key version and expanded version for compatibility
+            expanded_content = {
+                "recipient_name": cert_content["r"],
+                "recipient_aid": cert_content["a"],
+                "message": cert_content["m"],
+                "issued_at": cert_content["i"]
+            }
+            
             certificate = {
                 "event_said": serder.said,
                 "cert_id": cert_id,
                 "issuer_aid": issuer_identity.hab.pre,
-                "certificate": cert_content,
+                "certificate": expanded_content,  # Store expanded version for readability
+                "cert_data": cert_content,        # Store compact version for KERI compatibility
                 "signed_event_raw": serder.raw.decode("utf-8"),
                 "signatures": sigs,
                 "raw_event": serder.ked
@@ -178,8 +201,20 @@ class ThankYouCertificate:
                             if serder.said == event_said:
                                 print("Certificate verification successful:")
                                 print(f"  Issuer: {issuer_aid}")
-                                print(f"  Recipient: {certificate['certificate']['recipient_name']}")
-                                print(f"  Message: {certificate['certificate']['message']}")
+                                
+                                # Handle both formats of certificates
+                                cert_data = certificate.get('certificate', {})
+                                if 'recipient_name' in cert_data:
+                                    recipient_name = cert_data.get('recipient_name', 'Unknown')
+                                    message = cert_data.get('message', 'Unknown')
+                                else:
+                                    # Try compact format
+                                    cert_data = certificate.get('cert_data', {})
+                                    recipient_name = cert_data.get('r', 'Unknown')
+                                    message = cert_data.get('m', 'Unknown')
+                                
+                                print(f"  Recipient: {recipient_name}")
+                                print(f"  Message: {message}")
                                 return {"valid": True, "certificate": certificate}
                             else:
                                 print("Certificate SAID doesn't match the event")
@@ -197,8 +232,20 @@ class ThankYouCertificate:
                         if saider.verify(serder.raw):
                             print("Certificate format verification successful (limited):")
                             print(f"  Issuer: {issuer_aid}")
-                            print(f"  Recipient: {certificate['certificate']['recipient_name']}")
-                            print(f"  Message: {certificate['certificate']['message']}")
+                            
+                            # Handle both formats of certificates
+                            cert_data = certificate.get('certificate', {})
+                            if 'recipient_name' in cert_data:
+                                recipient_name = cert_data.get('recipient_name', 'Unknown')
+                                message = cert_data.get('message', 'Unknown')
+                            else:
+                                # Try compact format
+                                cert_data = certificate.get('cert_data', {})
+                                recipient_name = cert_data.get('r', 'Unknown')
+                                message = cert_data.get('m', 'Unknown')
+                            
+                            print(f"  Recipient: {recipient_name}")
+                            print(f"  Message: {message}")
                             return {"valid": True, "certificate": certificate, 
                                    "warning": "Limited verification - issuer's KEL not available"}
                         else:
@@ -208,8 +255,20 @@ class ThankYouCertificate:
                     # Without recipient identity, do basic verification
                     print("Warning: Limited verification without recipient identity")
                     print(f"  Issuer: {issuer_aid}")
-                    print(f"  Recipient: {certificate['certificate']['recipient_name']}")
-                    print(f"  Message: {certificate['certificate']['message']}")
+                    
+                    # Handle both formats of certificates
+                    cert_data = certificate.get('certificate', {})
+                    if 'recipient_name' in cert_data:
+                        recipient_name = cert_data.get('recipient_name', 'Unknown')
+                        message = cert_data.get('message', 'Unknown')
+                    else:
+                        # Try compact format
+                        cert_data = certificate.get('cert_data', {})
+                        recipient_name = cert_data.get('r', 'Unknown')
+                        message = cert_data.get('m', 'Unknown')
+                    
+                    print(f"  Recipient: {recipient_name}")
+                    print(f"  Message: {message}")
                     return {"valid": True, "certificate": certificate, 
                            "warning": "Limited verification - no recipient identity provided"}
                     
@@ -343,13 +402,24 @@ class ThankYouCertificate:
             with open(cert_file, "r") as f:
                 certificate = json.load(f)
                 
+            # Get the certificate data in the most appropriate format available
+            cert_content = certificate.get("certificate", {})
+            if not cert_content and "cert_data" in certificate:
+                # Use compact format if expanded not available
+                cert_content = {
+                    "recipient_name": certificate["cert_data"].get("r", ""),
+                    "recipient_aid": certificate["cert_data"].get("a", ""),
+                    "message": certificate["cert_data"].get("m", ""),
+                    "issued_at": certificate["cert_data"].get("i", "")
+                }
+                
             # Create a simplified export format
             export_data = {
                 "type": "KERIThankYouCertificate",
                 "version": "1.0",
                 "issuer_aid": certificate["issuer_aid"],
                 "event_said": certificate["event_said"],
-                "certificate": certificate["certificate"],
+                "certificate": cert_content,
                 "signed_event": certificate["signed_event_raw"],
                 "signatures": certificate["signatures"]
             }
