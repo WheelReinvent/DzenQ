@@ -22,65 +22,81 @@ cd DzenQ
 
 # Install dependencies
 pip install -r requirements.txt
+
+# Make the CLI executable (optional)
+chmod +x appreciate.py
 ```
 
 ## Usage
+
+The Appreciation Protocol provides a unified command-line interface for all operations:
+
+```bash
+# Show help and available commands
+python appreciate.py --help
+```
 
 ### Identity Management
 
 ```bash
 # Create a new identity
-python scripts/create_identity.py my_identity
+python appreciate.py identity create my_identity
 
 # Create an identity with witness support
-python scripts/create_identity.py my_identity --witnesses 3 --witness-urls tcp://witness1.example.com:5620 tcp://witness2.example.com:5620 tcp://witness3.example.com:5620
+python appreciate.py identity create my_identity --witnesses 3 --witness-urls tcp://witness1.example.com:5620 tcp://witness2.example.com:5620 tcp://witness3.example.com:5620
 
 # Rotate keys for an identity
-python scripts/rotate_keys.py my_identity
+python appreciate.py identity rotate my_identity
+
+# Remove an identity
+python appreciate.py identity remove my_identity
+
+# Remove an identity with backup
+python appreciate.py identity remove my_identity --backup ./backups
 ```
 
 ### Certificate Operations
 
 ```bash
 # Issue a certificate
-python scripts/issue_certificate.py my_identity "Recipient Name" "Thank you message"
+python appreciate.py certificate issue my_identity "Recipient Name" "Thank you message"
 
 # Verify a certificate
-python scripts/verify_certificate.py /path/to/certificate.json --recipient recipient_identity
+python appreciate.py certificate verify /path/to/certificate.json --recipient recipient_identity
 
 # Acknowledge a certificate
-python scripts/verify_certificate.py /path/to/certificate.json --recipient recipient_identity --acknowledge
+python appreciate.py certificate verify /path/to/certificate.json --recipient recipient_identity --acknowledge
 
 # List all certificates
-python scripts/list_certificates.py
+python appreciate.py certificate list
 
 # List with details
-python scripts/list_certificates.py --details
+python appreciate.py certificate list --details
 
 # List acknowledgments
-python scripts/list_certificates.py --acks
+python appreciate.py certificate list --acks
 ```
 
 ### Export and Import
 
 ```bash
 # Export a certificate
-python scripts/list_certificates.py --export 1:exported_cert.json
+python appreciate.py certificate list --export 1:exported_cert.json
 
 # Import and verify a certificate
-python scripts/verify_certificate.py /path/to/certificate.json --import exported_cert.json
+python appreciate.py certificate verify /path/to/certificate.json --import exported_cert.json
 ```
 
-## Complete Example
+### Complete Example
 
 Run the complete example workflow:
 
 ```bash
 # Run in local mode (no witnesses)
-python keri_example.py --clean
+python appreciate.py example --clean
 
 # Run with witness support
-python keri_example.py --clean --use-witnesses
+python appreciate.py example --clean --use-witnesses
 ```
 
 ## Architecture
@@ -89,7 +105,8 @@ This implementation uses the KERI (Key Event Receipt Infrastructure) framework f
 
 - `adapter/keri/identity.py`: Manages KERI identities with key generation and rotation capabilities
 - `adapter/keri/certificate.py`: Implements certificate issuance, verification, and acknowledgment
-- `scripts/`: Command-line tools for all certificate operations
+- `cli.py`: Unified command-line interface using Typer
+- `appreciate.py`: Entry point for the command-line application
 
 ### Storage
 
