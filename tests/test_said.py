@@ -51,3 +51,32 @@ def test_acdc_inheritance(alice):
     assert isinstance(cred.said, SAID)
     assert cred.said.startswith("E")
     assert cred.json.startswith('{"v":')
+
+def test_use_case(alice):
+    """
+    Complete use case:
+    1. Alice (Issuer) creates ACDC birthday greeting for Ivan.
+    2. Alice signs/anchors the ACDC in her KEL.
+    3. Ivan (Recipient) verifies the ACDC against Alice's KEL.
+    """
+    ivan = Identity(name="ivan")
+    
+    # 1. Alice creates ACDC
+    schema_said = "EM9M_xyz_dummy_schema_said_1234567890" 
+    attributes = {"message": "Congrat Ivan with Birthday", "award": "Best Developer"}
+    
+    # Passing ivan.aid as recipient
+    cred = ACDC(issuer=alice, schema=schema_said, attributes=attributes, recipient=ivan.aid)
+    
+    # 2. Alice anchors the ACDC in her KEL
+    alice.anchor(cred)
+    
+    # 3. Ivan verifies the ACDC
+    # Ivan has the cred object and Alice's KEL
+    assert cred.verify() is True
+    assert alice.kel.is_anchored(cred.said) is True
+    
+    # Verification with wrong KEL should fail
+    assert ivan.kel.is_anchored(cred.said) is False
+    
+    ivan.close()

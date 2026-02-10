@@ -1,5 +1,6 @@
 from typing import Iterator
-from .event import Event
+from .event import Event, InteractionEvent
+from .base import SAD
 class KEL:
     """
     KEL (Key Event Log) provides an iterable interface to an identity's event history.
@@ -19,6 +20,18 @@ class KEL:
         """Return the number of events in the KEL."""
         # The sequence number is 0-indexed, so we add 1 to the highest SN.
         return self._hab.kever.sn + 1
+
+    def is_anchored(self, said: str) -> bool:
+        """
+        Check if the given SAID is anchored in this KEL.
+        """
+        said_str = str(said)
+        for event in self:
+            if isinstance(event, InteractionEvent):
+                for anchor in event.anchors:
+                    if anchor.get('d') == said_str:
+                        return True
+        return False
 
     def __repr__(self):
         return f"KEL(identity='{self._hab.name}', length={len(self)})"

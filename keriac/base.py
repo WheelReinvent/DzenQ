@@ -1,6 +1,8 @@
 import json
 from typing import Optional
 
+from keri.core import coring
+
 from .const import Fields
 from .types import SADDict
 
@@ -165,7 +167,6 @@ class SAD:
         Returns:
             bool: True if verified, False otherwise.
         """
-        from keri.core import coring
         try:
             saider = coring.Saider(qb64=str(self.said))
             # Verification against dict is generally safer for flexible SADs

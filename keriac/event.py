@@ -86,5 +86,10 @@ class RotationEvent(Event):
 
 class InteractionEvent(Event):
     """Represents an Interaction Event (ixn)."""
+    @property
+    def anchors(self) -> list:
+        """Return the list of seals (anchors) in this interaction event."""
+        return self.data.get(Fields.SEALS, [])
+
     def __repr__(self):
         return f"InteractionEvent(aid='{self.aid}', sequence={self.sequence})"
