@@ -20,9 +20,10 @@ class Identifier:
         self._hab = self._hby.makeHab(name=name, **kwargs)
 
     @property
-    def aid(self) -> str:
-        """The Autonomic Identifier (Prefix) in qb64."""
-        return self._hab.pre
+    def aid(self) -> 'AID':
+        """The Autonomous Identifier (AID) of this agent (qb64)."""
+        from .aid import AID
+        return AID(self._hab.pre)
 
     @property
     def habitat(self):

@@ -21,9 +21,10 @@ class SAD:
         return self._serder.sad
 
     @property
-    def said(self) -> str:
+    def said(self) -> 'SAID':
         """The Self-Addressing Identifier (SAID) of the object."""
-        return self._serder.said
+        from .said import SAID
+        return SAID(self._serder.said)
 
     @property
     def qb64(self) -> str:
