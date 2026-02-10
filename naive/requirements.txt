@@ -1,2 +1,0 @@
-keri>=0.6.6
-cryptography>=39.0.0

@@ -1,1 +1,0 @@
-# KERI implementation package

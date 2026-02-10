@@ -1,28 +1,16 @@
 [project]
-name = "appreciate"
+name = "dzenq"
 version = "0.1.0"
-description = "A decentralized, secure system for issuing and verifying Certificates of Appreciation using KERI"
-authors = [
-    {name = "liubomyr.ivanitskyi", email = "liubomyr.ivanitskyi@gmail.com"}
-]
+description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.12.2,<4.0.0"
+requires-python = ">=3.12.6,<3.13"
 dependencies = [
-    "keri>=1.2.6,<2.0.0",
-    "cryptography>=41.0.0",
-    "typer>=0.9.0",
-    "rich>=13.0.0",
-    "halo>=0.0.31"
+    "keri>=1.3.4",
+    "pysodium>=0.7.18",
+    "pytest>=9.0.2",
 ]
 
-[project.scripts]
-appreciate = "cli:app"
-tnx = "cli:app"
-
-[project.urls]
-"Homepage" = "https://github.com/liubomyr-ivanitskyi/DzenQ"
-"Bug Tracker" = "https://github.com/liubomyr-ivanitskyi/DzenQ/issues"
-
-[build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]
