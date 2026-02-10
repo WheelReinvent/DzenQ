@@ -51,17 +51,26 @@ class Event(SAD):
     @property
     def aid(self) -> AID:
         """The Autonomous Identifier (AID) associated with this event."""
-        return AID(self._sad.pre)
+        from .const import Fields
+        return AID(self.data[Fields.PREFIX])
 
     @property
     def sequence(self) -> int:
         """The sequence number of the event."""
-        return int(self._sad.sn)
+        from .const import Fields
+        return int(self.data[Fields.SEQUENCE], 16)
 
     @property
     def event_type(self) -> str:
         """The message type (ilk) of the event."""
-        return self._sad.ilk
+        from .const import Fields
+        return self.data[Fields.TYPE]
+
+    @property
+    def prior(self) -> str:
+        """The digest of the prior event."""
+        from .const import Fields
+        return self.data[Fields.PRIOR]
 
 class InceptionEvent(Event):
     """Represents an Inception Event (icp) or Delegated Inception Event (dip)."""

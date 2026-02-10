@@ -58,6 +58,12 @@ class SAD:
         """The raw bytes serialization of the object."""
         return self._sad.raw
 
+    @property
+    def version(self) -> str:
+        """The version string."""
+        from .const import Fields
+        return self.data[Fields.VERSION]
+
     def to_json(self, indent: Optional[int] = None) -> str:
         """
         Return the object as a JSON string.

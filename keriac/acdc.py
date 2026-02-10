@@ -59,5 +59,24 @@ class ACDC(SAD):
         warnings.warn("ACDC.create() is deprecated. Use ACDC() constructor directly.", DeprecationWarning, stacklevel=2)
         return cls(*args, **kwargs)
 
+    @property
+    def issuer(self) -> 'AID':
+        """The Issuer AID."""
+        from .const import Fields
+        from .aid import AID
+        return AID(self.data[Fields.ISSUER])
+
+    @property
+    def schema(self) -> str:
+        """The Schema SAID."""
+        from .const import Fields
+        return self.data[Fields.SCHEMA]
+
+    @property
+    def attributes(self) -> dict:
+        """The credential attributes."""
+        from .const import Fields
+        return self.data[Fields.ATTRIBUTES]
+
     def __repr__(self):
         return f"ACDC(said='{self.said}')"
