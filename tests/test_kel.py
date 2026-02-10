@@ -10,8 +10,8 @@ def alice():
 def test_kel_iteration(alice):
     """Verify KEL iteration and event types."""
     # Create some events
-    alice.habitat.interact(data=[{"msg": "First interaction"}])
-    alice.habitat.interact(data=[{"msg": "Second interaction"}])
+    alice.anchor(msg="First interaction")
+    alice.anchor(msg="Second interaction")
     
     kel = alice.kel
     assert isinstance(kel, KEL)

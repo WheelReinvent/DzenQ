@@ -40,10 +40,7 @@ def test_event_hierarchy(alice):
 
 def test_interaction_event(alice):
     """Verify InteractionEvent creation."""
-    hab = alice.habitat
-    ixn_raw = hab.interact(data=[])
-    
-    event = Event(ixn_raw)
+    event = alice.anchor(msg="Hello")
     
     assert isinstance(event, InteractionEvent)
     assert event.event_type == coring.Ilks.ixn

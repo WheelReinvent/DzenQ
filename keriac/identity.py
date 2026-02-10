@@ -26,8 +26,51 @@ class Identity:
 
     @property
     def habitat(self):
-        """Access the underlying KERI Hab instance."""
+        """
+        Access the underlying KERI Hab instance.
+        .. deprecated:: 0.1.0
+           Use Identity-level methods like `anchor()` instead.
+        """
         return self._hab
+
+    def anchor(self, data=None, **kwargs) -> 'Event':
+        """
+        Anchor data into the Key Event Log (KEL).
+        
+        This method creates an Interaction Event (ixn) and anchors the provided 
+        data into it. It abstracts away the KERI technicalities of seals.
+
+        Args:
+            data (any): The data to anchor. 
+                        - If it's a string, it will be anchored as {"msg": data}.
+                        - If it's a dict, it will be anchored as-is.
+                        - If it's a SAD (e.g. ACDC), it will anchor its SAID.
+                        - If it's a list, it's used as-is (must be a list of seal dicts).
+            **kwargs: Shortcut for anchoring a single dictionary of key-value pairs.
+        
+        Returns:
+            Event: The resulting interaction event.
+        """
+        from .event import Event
+        
+        seals = []
+        if data is not None:
+            if isinstance(data, str):
+                seals.append({"msg": data})
+            elif isinstance(data, dict):
+                seals.append(data)
+            elif isinstance(data, list):
+                seals = data
+            elif hasattr(data, "said"):  # SAD objects
+                seals.append({"d": str(data.said)})
+            else:
+                raise ValueError(f"Unsupported data type for anchoring: {type(data)}")
+        
+        if kwargs:
+            seals.append(kwargs)
+            
+        raw = self._hab.interact(data=seals)
+        return Event(raw)
 
     @property
     def kel(self) -> 'KEL':
