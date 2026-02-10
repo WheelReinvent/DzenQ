@@ -11,43 +11,53 @@ class ACDC(SAD):
     Inherits from SAD for consistent SAID and serialization handling.
     """
 
-    @classmethod
-    def create(cls, 
-               issuer: Identity, 
-               schema: str, 
-               attributes: dict, 
-               recipient: Optional[str] = None,
-               registry: Optional[str] = None,
-               source: Optional[Union[dict, list]] = None,
-               rules: Optional[Union[dict, list]] = None,
-               **kwargs):
+    def __init__(self, 
+                 sad_or_raw: Optional[Union[dict, bytes, str, SAD]] = None,
+                 *,
+                 issuer: Optional[Identity] = None, 
+                 schema: Optional[str] = None, 
+                 attributes: Optional[dict] = None, 
+                 recipient: Optional[str] = None,
+                 registry: Optional[str] = None,
+                 source: Optional[Union[dict, list]] = None,
+                 rules: Optional[Union[dict, list]] = None,
+                 **kwargs):
         """
-        Create a new ACDC.
+        Initialize an ACDC.
         
-        Args:
-            issuer (Identifier): The Identifier object representing the issuer.
-            schema (str): The SAID of the ACDC Schema.
-            attributes (dict): The data values for the credential subject.
-            recipient (str, optional): The AID of the recipient.
-            registry (str, optional): The SAID of the Transaction Event Log (TEL) registry.
-            source (dict|list, optional): Chained source credentials (EOW/SAID).
-            rules (dict|list, optional): ACDC rules section.
-            **kwargs: Additional parameters for the underlying keri library.
+        Style 1: Wrap existing credential
+            ACDC(sad_or_raw)
             
-        Returns:
-            ACDC: A new ACDC instance.
+        Style 2: Create new credential
+            ACDC(issuer=..., schema=..., attributes=...)
         """
-        serder = proving.credential(
-            issuer=issuer.aid,
-            schema=schema,
-            data=attributes,
-            recipient=recipient,
-            status=registry,
-            source=source,
-            rules=rules,
-            **kwargs
-        )
-        return cls(serder)
+        if sad_or_raw is not None:
+            if any([issuer, schema, attributes]):
+                raise ValueError("Cannot provide both sad_or_raw and creation arguments (issuer, schema, etc.)")
+            super().__init__(sad_or_raw)
+        elif all([issuer, schema, attributes]):
+            serder = proving.credential(
+                issuer=issuer.aid,
+                schema=schema,
+                data=attributes,
+                recipient=recipient,
+                status=registry,
+                source=source,
+                rules=rules,
+                **kwargs
+            )
+            super().__init__(serder)
+        else:
+            raise ValueError("Must provide either sad_or_raw OR (issuer, schema, and attributes)")
+
+    @classmethod
+    def create(cls, *args, **kwargs):
+        """
+        [Deprecated] Use ACDC constructor directly.
+        """
+        import warnings
+        warnings.warn("ACDC.create() is deprecated. Use ACDC() constructor directly.", DeprecationWarning, stacklevel=2)
+        return cls(*args, **kwargs)
 
     def __repr__(self):
         return f"ACDC(said='{self.said}')"

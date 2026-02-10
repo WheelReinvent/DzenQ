@@ -9,7 +9,7 @@ def alice():
     ident.close()
 
 def test_acdc_creation(alice):
-    """Test standard ACDC creation with academic terms."""
+    """Test standard ACDC creation with direct constructor."""
     schema_said = "EM9M_xyz_dummy_schema_said_1234567890" 
     attributes = {
         "name": "Alice Doe",
@@ -17,8 +17,8 @@ def test_acdc_creation(alice):
         "dt": "2023-10-27T12:00:00Z"
     }
     
-    # Create ACDC
-    cred = ACDC.create(
+    # Create ACDC directly
+    cred = ACDC(
         issuer=alice,
         schema=schema_said,
         attributes=attributes
@@ -29,12 +29,10 @@ def test_acdc_creation(alice):
     assert len(cred.qb64) > 0
     assert cred.raw.startswith(b'{"v":')
     
-    # Verify content in qb64 (json decode)
-    import json
-    parsed = json.loads(cred.qb64)
-    assert parsed['i'] == alice.aid
-    assert parsed['s'] == schema_said
-    assert parsed['a']['name'] == "Alice Doe"
+    # Verify content
+    assert cred.data['i'] == alice.aid
+    assert cred.data['s'] == schema_said
+    assert cred.data['a']['name'] == "Alice Doe"
 
 def test_acdc_with_recipient(alice):
     """Test ACDC creation with a recipient AID."""
@@ -45,27 +43,64 @@ def test_acdc_with_recipient(alice):
         "dt": "2023-10-27T12:00:00Z"
     }
     
-    cred = ACDC.create(
+    cred = ACDC(
         issuer=alice,
         schema=schema_said,
         attributes=attributes,
         recipient=recipient_aid
     )
     
-    import json
-    parsed = json.loads(cred.qb64)
-    assert parsed['a']['i'] == recipient_aid
+    assert cred.data['a']['i'] == recipient_aid
+
+def test_acdc_wrapping_style(alice):
+    """Verify wrapping an existing dict (SAD) into ACDC."""
+    schema = "EBm9vXQ9y9A9p9v9v9v9v9v9v9v9v9v9v9v9v9v9v9v"
+    attributes = {"name": "John Doe"}
+    
+    # First create one to get valid SAD data
+    orig = ACDC(issuer=alice, schema=schema, attributes=attributes)
+    sad_data = orig.data
+    orig_said = orig.said
+    
+    # Wrapping Style
+    wrapped = ACDC(sad_data)
+    
+    assert isinstance(wrapped, ACDC)
+    assert str(wrapped.said) == str(orig_said)
+    assert wrapped.data == sad_data
+    assert wrapped.data == orig.data
+
+def test_acdc_wrapping_sad_instance(alice):
+    """Verify wrapping a SAD instance into ACDC."""
+    schema = "EBm9vXQ9y9A9p9v9v9v9v9v9v9v9v9v9v9v9v9v9v9v"
+    orig = ACDC(issuer=alice, schema=schema, attributes={"n": 1})
+    
+    # Wrapping another SAD instance
+    new_acdc = ACDC(orig)
+    
+    assert isinstance(new_acdc, ACDC)
+    assert new_acdc.said == orig.said
+    assert new_acdc._sad is orig._sad
+
+def test_acdc_ambiguous_creation(alice):
+    """Verify error when both wrapping and creation arguments are provided."""
+    with pytest.raises(ValueError, match="Cannot provide both sad_or_raw and creation arguments"):
+        ACDC({"v": "1"}, issuer=alice, schema="S", attributes={})
+
+def test_acdc_missing_args(alice):
+    """Verify error when missing required creation arguments."""
+    with pytest.raises(ValueError, match="Must provide either sad_or_raw OR"):
+        ACDC(issuer=alice) # missing schema and attributes
 
 def test_acdc_json_representation(alice):
     """Test JSON representation properties of ACDC."""
     schema_said = "EM9M_xyz_dummy_schema_said_1234567890" 
     attributes = {"name": "Alice"}
     
-    cred = ACDC.create(issuer=alice, schema=schema_said, attributes=attributes)
+    cred = ACDC(issuer=alice, schema=schema_said, attributes=attributes)
     
     # Test .json property
     json_str = cred.json
-    print(json_str)
     assert '"i":' in json_str
     assert '"s":' in json_str
     

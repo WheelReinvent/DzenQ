@@ -8,14 +8,21 @@ class Event(SAD):
     Uses __new__ as a factory to return specific subclasses.
     """
 
-    def __new__(cls, serder_or_raw):
+    def __new__(cls, sad_or_raw):
         """
         Factory logic to return the appropriate Event subclass.
         """
-        if isinstance(serder_or_raw, (bytes, bytearray, memoryview)):
-            serder = serdering.SerderKERI(raw=bytes(serder_or_raw))
+        # Unwrap SAD instance if provided
+        if isinstance(sad_or_raw, SAD):
+            serder = sad_or_raw._sad
+        elif isinstance(sad_or_raw, dict):
+            serder = serdering.SerderKERI(sad=sad_or_raw)
+        elif isinstance(sad_or_raw, (bytes, bytearray, memoryview)):
+            serder = serdering.SerderKERI(raw=bytes(sad_or_raw))
+        elif hasattr(sad_or_raw, 'sad'): # Likely a Serder
+            serder = sad_or_raw
         else:
-            serder = serder_or_raw
+            raise ValueError(f"Unsupported type for Event initialization: {type(sad_or_raw)}")
             
         # Determine the correct subclass based on ilk
         ilk = serder.ilk
@@ -31,30 +38,30 @@ class Event(SAD):
         instance = super(Event, cls).__new__(subclass)
         return instance
 
-    def __init__(self, serder_or_raw):
+    def __init__(self, sad_or_raw):
         """
         Initialize the event instance.
         """
-        if isinstance(serder_or_raw, (bytes, bytearray, memoryview)):
-            serder = serdering.SerderKERI(raw=bytes(serder_or_raw))
+        # SAD.__init__ handles the heavy lifting of wrapping into _sad
+        if isinstance(sad_or_raw, SAD):
+            super().__init__(sad_or_raw._sad)
         else:
-            serder = serder_or_raw
-        super().__init__(serder)
+            super().__init__(sad_or_raw)
 
     @property
     def aid(self) -> AID:
         """The Autonomous Identifier (AID) associated with this event."""
-        return AID(self._serder.pre)
+        return AID(self._sad.pre)
 
     @property
     def sequence(self) -> int:
         """The sequence number of the event."""
-        return int(self._serder.sn)
+        return int(self._sad.sn)
 
     @property
     def event_type(self) -> str:
         """The message type (ilk) of the event."""
-        return self._serder.ilk
+        return self._sad.ilk
 
 class InceptionEvent(Event):
     """Represents an Inception Event (icp) or Delegated Inception Event (dip)."""
