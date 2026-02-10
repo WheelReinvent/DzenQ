@@ -10,14 +10,16 @@ def alice():
 def test_said_calculate_dict():
     """Test SAID calculation for a raw dictionary."""
     data = {"name": "Alice", "d": ""}
-    said = SAID.from_data(data)
+    # Create SAD to calculate SAID
+    sad = SAD(data)
+    said = sad.said
     
     assert isinstance(said, SAID)
     assert isinstance(said, str)
     assert said.startswith("E")
     
     # Verify the SAID matches
-    assert said.verify(data)
+    assert sad.verify()
 
 def test_said_calculate_object(alice):
     """Test SAID calculation for a SAD object (ACDC)."""
@@ -28,17 +30,15 @@ def test_said_calculate_object(alice):
     
     # Calculate SAID for the object
     original_said = cred.said
-    calculated_said = SAID.from_data(cred.data)
     
     assert isinstance(original_said, SAID)
-    assert calculated_said == original_said
-    assert calculated_said.verify(cred.data)
+    assert cred.verify()
 
 def test_said_verify_invalid():
     """Test SAID verification with invalid data."""
     data = {"name": "Bob", "d": "E_invalid_said_here"}
-    said = SAID(data["d"])
-    assert not said.verify(data)
+    sad = SAD(data)
+    assert not sad.verify()
 
 def test_acdc_inheritance(alice):
     """Verify that ACDC correctly inherits from SAD and has SAID type."""
