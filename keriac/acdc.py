@@ -1,21 +1,14 @@
 from typing import Optional, Union
 from keri.vc import proving
 from .identifier import Identifier
+from .base import SAD
 
-class ACDC:
+class ACDC(SAD):
     """
     Academic wrapper for the Authentic Chained Data Container (ACDC).
     Represents a Verifiable Credential in the KERI ecosystem.
+    Inherits from SAD for consistent SAID and serialization handling.
     """
-
-    def __init__(self, serder):
-        """
-        Initialize an ACDC object.
-        
-        Args:
-            serder: The underlying keri.core.serdering.SerderACDC instance.
-        """
-        self._serder = serder
 
     @classmethod
     def create(cls, 
@@ -54,37 +47,6 @@ class ACDC:
             **kwargs
         )
         return cls(serder)
-
-    @property
-    def said(self) -> str:
-        """The Self-Addressing Identifier (SAID) of the ACDC."""
-        return self._serder.said
-
-    @property
-    def qb64(self) -> str:
-        """The qb64 serialization of the ACDC."""
-        # Serder doesn't have qb64, use raw.decode()
-        return self._serder.raw.decode("utf-8")
-
-    @property
-    def raw(self) -> bytes:
-        """The raw bytes serialization of the ACDC."""
-        return self._serder.raw
-
-    def to_json(self, indent: Optional[int] = None) -> str:
-        """
-        Return the ACDC as a JSON string.
-        
-        Args:
-            indent (int, optional): Number of spaces for indentation.
-        """
-        import json
-        return json.dumps(self._serder.sad, indent=indent)
-
-    @property
-    def json(self) -> str:
-        """The ACDC represented as a JSON string (no indentation)."""
-        return self.to_json()
 
     def __repr__(self):
         return f"ACDC(said='{self.said}')"
