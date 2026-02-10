@@ -1,10 +1,10 @@
 import pytest
-from keriac import Identifier, AID, SAID, Event, InceptionEvent, RotationEvent, InteractionEvent
+from keriac import Identity, AID, SAID, Event, InceptionEvent, RotationEvent, InteractionEvent
 from keri.core import coring
 
 @pytest.fixture
 def alice():
-    ident = Identifier(name="alice")
+    ident = Identity(name="alice")
     yield ident
     ident.close()
 
@@ -18,8 +18,8 @@ def test_aid_inheritance():
     assert isinstance(aid, str)
     assert str(aid) == aid_str
 
-def test_identifier_returns_aid(alice):
-    """Verify Identifier.aid returns an AID instance."""
+def test_identity_returns_aid(alice):
+    """Verify Identity.aid returns an AID instance."""
     assert isinstance(alice.aid, AID)
     assert len(alice.aid) > 0
 
@@ -29,12 +29,12 @@ def test_event_hierarchy(alice):
     hab = alice.habitat
     icp_raw = hab.makeOwnInception()
     
-    event = Event.create(icp_raw)
+    event = Event(icp_raw)
     
     assert isinstance(event, InceptionEvent)
     assert isinstance(event, Event)
-    assert event.ilk == coring.Ilks.icp
-    assert event.sn == 0
+    assert event.event_type == coring.Ilks.icp
+    assert event.sequence == 0
     assert event.aid == alice.aid
     assert isinstance(event.said, SAID)
 
@@ -43,9 +43,9 @@ def test_interaction_event(alice):
     hab = alice.habitat
     ixn_raw = hab.interact(data=[])
     
-    event = Event.create(ixn_raw)
+    event = Event(ixn_raw)
     
     assert isinstance(event, InteractionEvent)
-    assert event.ilk == coring.Ilks.ixn
-    assert event.sn == 1
+    assert event.event_type == coring.Ilks.ixn
+    assert event.sequence == 1
     assert event.aid == alice.aid

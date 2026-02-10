@@ -1,10 +1,10 @@
 import pytest
-from keriac import Identifier, ACDC
+from keriac import Identity, ACDC
 
 @pytest.fixture
 def alice():
-    """Fixture to provide a test Identifier."""
-    ident = Identifier(name="alice")
+    """Fixture to provide a test Identity."""
+    ident = Identity(name="alice")
     yield ident
     ident.close()
 

@@ -1,7 +1,8 @@
 from typing import Optional, Union
 from keri.vc import proving
-from .identifier import Identifier
 from .base import SAD
+from .identity import Identity
+from .said import SAID
 
 class ACDC(SAD):
     """
@@ -12,7 +13,7 @@ class ACDC(SAD):
 
     @classmethod
     def create(cls, 
-               issuer: Identifier, 
+               issuer: Identity, 
                schema: str, 
                attributes: dict, 
                recipient: Optional[str] = None,
