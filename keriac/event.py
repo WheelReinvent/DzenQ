@@ -1,5 +1,6 @@
 from .base import SAD
 from .aid import AID
+from .types import EventDict
 from keri.core import coring, serdering
 
 class Event(SAD):
@@ -47,6 +48,12 @@ class Event(SAD):
             super().__init__(sad_or_raw._sad)
         else:
             super().__init__(sad_or_raw)
+
+    @property
+    def data(self) -> EventDict:
+        """The internal dictionary representation (SAD) of the object."""
+        from .types import EventDict
+        return super().data
 
     @property
     def aid(self) -> AID:

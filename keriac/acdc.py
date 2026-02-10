@@ -2,7 +2,8 @@ from typing import Optional, Union
 from keri.vc import proving
 from .base import SAD
 from .identity import Identity
-from .said import SAID
+from .aid import AID
+from .types import ACDCDict
 
 class ACDC(SAD):
     """
@@ -60,7 +61,13 @@ class ACDC(SAD):
         return cls(*args, **kwargs)
 
     @property
-    def issuer(self) -> 'AID':
+    def data(self) -> ACDCDict:
+        """The internal dictionary representation (SAD) of the object."""
+        from .types import ACDCDict
+        return super().data
+
+    @property
+    def issuer(self) -> AID:
         """The Issuer AID."""
         from .const import Fields
         from .aid import AID

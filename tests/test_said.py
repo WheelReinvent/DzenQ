@@ -28,11 +28,11 @@ def test_said_calculate_object(alice):
     
     # Calculate SAID for the object
     original_said = cred.said
-    calculated_said = SAID.from_data(cred)
+    calculated_said = SAID.from_data(cred.data)
     
     assert isinstance(original_said, SAID)
     assert calculated_said == original_said
-    assert calculated_said.verify(cred)
+    assert calculated_said.verify(cred.data)
 
 def test_said_verify_invalid():
     """Test SAID verification with invalid data."""

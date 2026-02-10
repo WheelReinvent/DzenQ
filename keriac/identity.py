@@ -1,4 +1,7 @@
 from keri.app import habbing
+from .event import Event
+from .aid import AID
+from .kel import KEL
 
 class Identity:
     """
@@ -19,9 +22,8 @@ class Identity:
         self._hab = self._hby.makeHab(name=name, **kwargs)
 
     @property
-    def aid(self) -> 'AID':
+    def aid(self) -> AID:
         """The Autonomous Identifier (AID) of this entity (qb64)."""
-        from .aid import AID
         return AID(self._hab.pre)
 
     @property
@@ -33,7 +35,7 @@ class Identity:
         """
         return self._hab
 
-    def anchor(self, data=None, **kwargs) -> 'Event':
+    def anchor(self, data=None, **kwargs) -> Event:
         """
         Anchor data into the Key Event Log (KEL).
         
@@ -51,7 +53,6 @@ class Identity:
         Returns:
             Event: The resulting interaction event.
         """
-        from .event import Event
         
         seals = []
         if data is not None:
@@ -73,10 +74,9 @@ class Identity:
         return Event(raw)
 
     @property
-    def kel(self) -> 'KEL':
+    def kel(self) -> KEL:
         """Access the Key Event Log (KEL) for this identity."""
-        from .kel import KEL
-        return KEL(self)
+        return KEL(self._hab)
 
     def close(self):
         """Close the underlying database and resources."""

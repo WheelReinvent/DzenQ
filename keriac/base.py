@@ -1,4 +1,6 @@
 from typing import Optional
+from .said import SAID
+from .types import SADDict
 
 class SAD:
     """
@@ -38,12 +40,13 @@ class SAD:
             raise ValueError(f"Unsupported type for SAD initialization: {type(sad_or_raw)}")
 
     @property
-    def data(self) -> dict:
+    def data(self) -> SADDict:
         """The internal dictionary representation (SAD) of the object."""
+        from .types import SADDict
         return self._sad.sad
 
     @property
-    def said(self) -> 'SAID':
+    def said(self) -> SAID:
         """The Self-Addressing Identifier (SAID) of the object."""
         from .said import SAID
         return SAID(self._sad.said)
