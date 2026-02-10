@@ -1,7 +1,9 @@
 from keri.app import habbing
+
+from .base import AID
 from .event import Event
-from .aid import AID
-from .kel import KEL
+from .event_log import KEL
+
 
 class Identity:
     """
@@ -26,14 +28,6 @@ class Identity:
         """The Autonomous Identifier (AID) of this entity (qb64)."""
         return AID(self._hab.pre)
 
-    @property
-    def habitat(self):
-        """
-        Access the underlying KERI Hab instance.
-        .. deprecated:: 0.1.0
-           Use Identity-level methods like `anchor()` instead.
-        """
-        return self._hab
 
     def anchor(self, data=None, **kwargs) -> Event:
         """

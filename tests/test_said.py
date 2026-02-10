@@ -26,7 +26,7 @@ def test_said_calculate_object(alice):
     schema_said = "EM9M_xyz_dummy_schema_said_1234567890" 
     attributes = {"name": "Alice Credential"}
     
-    cred = ACDC.create(issuer=alice, schema=schema_said, attributes=attributes)
+    cred = ACDC(issuer=alice, schema=schema_said, attributes=attributes)
     
     # Calculate SAID for the object
     original_said = cred.said
@@ -44,7 +44,7 @@ def test_acdc_inheritance(alice):
     """Verify that ACDC correctly inherits from SAD and has SAID type."""
     schema_said = "EM9M_xyz_dummy_schema_said_1234567890" 
     attributes = {"name": "Alice Credential"}
-    cred = ACDC.create(issuer=alice, schema=schema_said, attributes=attributes)
+    cred = ACDC(issuer=alice, schema=schema_said, attributes=attributes)
     
     assert isinstance(cred, ACDC)
     assert isinstance(cred, SAD)

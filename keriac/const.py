@@ -1,6 +1,4 @@
-from enum import Enum
-
-class Fields(str, Enum):
+class Fields:
     """
     KERI/ACDC Field Labels.
     """
@@ -8,7 +6,7 @@ class Fields(str, Enum):
     VERSION = "v"
     TYPE = "t"       # Ilk
     SAID = "d"       # Digest
-    
+
     # KERI Events
     PREFIX = "i"     # Issuer / Prefix
     SEQUENCE = "s"   # Sequence Number (hex)
@@ -22,7 +20,7 @@ class Fields(str, Enum):
     CUTS = "c"       # Witnesses to cut
     ADDS = "ba"      # Witnesses to add
     SEALS = "a"      # Anchors / Seals
-    
+
     # ACDC
     ISSUER = "i"     # Issuer AID
     SCHEMA = "s"     # Schema SAID

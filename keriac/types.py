@@ -1,5 +1,4 @@
-from typing import TypedDict, Optional, List, Dict, Any
-from .const import Fields
+from typing_extensions import TypedDict, Optional, List, Dict, Any
 
 class SADDict(TypedDict, total=False):
     """

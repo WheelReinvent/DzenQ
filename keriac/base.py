@@ -1,6 +1,30 @@
+import json
 from typing import Optional
-from .said import SAID
+
+from .const import Fields
 from .types import SADDict
+
+
+class SAID(str):
+    """
+    Self-Addressing Identifier (SAID).
+    Inherits from str for easy usage as a string while providing utility methods.
+    """
+
+    def __repr__(self):
+        return f"SAID('{str(self)}')"
+
+
+class AID(SAID):
+    """
+    Autonomous Identifier (AID).
+    Representing the unique identifier of a KERI agent.
+    An AID is often a SAID of the inception event.
+    """
+
+    def __repr__(self):
+        return f"AID('{str(self)}')"
+
 
 class SAD:
     """
@@ -99,7 +123,6 @@ class SAD:
     @property
     def said(self) -> SAID:
         """The Self-Addressing Identifier (SAID) of the object."""
-        from .said import SAID
         if self._sad:
             return SAID(self._sad.said)
         return SAID(self._manual_said)
@@ -119,7 +142,6 @@ class SAD:
     @property
     def version(self) -> Optional[str]:
         """The version string."""
-        from .const import Fields
         return self.data.get(Fields.VERSION)
 
     def to_json(self, indent: Optional[int] = None) -> str:
@@ -129,7 +151,6 @@ class SAD:
         Args:
             indent (int, optional): Number of spaces for indentation.
         """
-        import json
         return json.dumps(self.data, indent=indent)
 
     @property

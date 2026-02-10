@@ -26,7 +26,7 @@ def test_identity_returns_aid(alice):
 def test_event_hierarchy(alice):
     """Verify Event hierarchy and factory creation."""
     # Alice's inception event
-    hab = alice.habitat
+    hab = alice._hab
     icp_raw = hab.makeOwnInception()
     
     event = Event(icp_raw)

@@ -1,5 +1,5 @@
-from .base import SAD
-from .aid import AID
+from .const import Fields
+from .base import SAD, AID
 from .types import EventDict
 from keri.core import coring, serdering
 
@@ -52,31 +52,26 @@ class Event(SAD):
     @property
     def data(self) -> EventDict:
         """The internal dictionary representation (SAD) of the object."""
-        from .types import EventDict
         return super().data
 
     @property
     def aid(self) -> AID:
         """The Autonomous Identifier (AID) associated with this event."""
-        from .const import Fields
         return AID(self.data[Fields.PREFIX])
 
     @property
     def sequence(self) -> int:
         """The sequence number of the event."""
-        from .const import Fields
         return int(self.data[Fields.SEQUENCE], 16)
 
     @property
     def event_type(self) -> str:
         """The message type (ilk) of the event."""
-        from .const import Fields
         return self.data[Fields.TYPE]
 
     @property
     def prior(self) -> str:
         """The digest of the prior event."""
-        from .const import Fields
         return self.data[Fields.PRIOR]
 
 class InceptionEvent(Event):

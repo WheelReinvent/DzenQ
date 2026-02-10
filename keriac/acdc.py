@@ -1,9 +1,9 @@
-from typing import Optional, Union
+from typing import Union
 from keri.vc import proving
-from .base import SAD
 from .identity import Identity
-from .aid import AID
+from .base import *
 from .types import ACDCDict
+
 
 class ACDC(SAD):
     """
@@ -69,14 +69,11 @@ class ACDC(SAD):
     @property
     def issuer(self) -> AID:
         """The Issuer AID."""
-        from .const import Fields
-        from .aid import AID
         return AID(self.data[Fields.ISSUER])
 
     @property
     def schema(self) -> str:
         """The Schema SAID."""
-        from .const import Fields
         return self.data[Fields.SCHEMA]
 
     @property
