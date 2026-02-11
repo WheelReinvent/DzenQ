@@ -100,6 +100,49 @@ class Identity:
         # Get the current public key from the KEL
         keri_verfer = self._hab.kever.verfers[0]
         return PublicKey(keri_verfer.qb64)
+    
+    def rotate(self, *, data=None, **kwargs) -> Event:
+        """
+        Rotate the identity's cryptographic keys.
+        
+        This is KERI's core security feature - rotating keys while maintaining
+        identifier continuity. The new keys are automatically generated and
+        committed via pre-rotation (next key commitments).
+        
+        Args:
+            data: Optional data to anchor in the rotation event.
+                  Can be a string, dict, SAD object, or list of seal dicts.
+            **kwargs: Advanced parameters (witness configuration, thresholds)
+                     Reserved for future witness/multi-sig support.
+            
+        Returns:
+            Event: The rotation event containing the key change.
+            
+        Example:
+            >>> alice = Identity(name="alice")
+            >>> old_key = alice.public_key
+            >>> rotation = alice.rotate(data="Upgrading to quantum-resistant keys")
+            >>> new_key = alice.public_key
+            >>> assert alice.aid == original_aid  # AID unchanged
+            >>> assert new_key != old_key  # Keys rotated
+        """
+        # Prepare seal data (same logic as anchor())
+        seals = []
+        if data is not None:
+            if isinstance(data, str):
+                seals.append({"msg": data})
+            elif isinstance(data, dict):
+                seals.append(data)
+            elif isinstance(data, list):
+                seals = data
+            elif hasattr(data, "said"):  # SAD objects
+                seals.append({"d": str(data.said)})
+            else:
+                raise ValueError(f"Unsupported data type for rotation: {type(data)}")
+        
+        # Perform rotation using Hab's rotate method
+        raw = self._hab.rotate(data=seals)
+        return Event(raw)
 
     def close(self):
         """Close the underlying database and resources."""

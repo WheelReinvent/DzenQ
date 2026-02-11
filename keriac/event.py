@@ -74,23 +74,62 @@ class Event(SAD):
         """The digest of the prior event."""
         return self.data[Fields.PRIOR]
 
+    @property
+    def anchors(self) -> list:
+        """Return the list of seals (anchors) in this event if any."""
+        return self.data.get(Fields.SEALS, [])
+
 class InceptionEvent(Event):
     """Represents an Inception Event (icp) or Delegated Inception Event (dip)."""
     def __repr__(self):
         return f"InceptionEvent(aid='{self.aid}', sequence={self.sequence})"
 
 class RotationEvent(Event):
-    """Represents a Rotation Event (rot) or Delegated Rotation Event (drt)."""
+    """
+    Key Rotation Event - represents a cryptographic key rotation.
+    
+    In KERI, rotation events allow changing keys while maintaining
+    identifier continuity. The previous keys are rotated away from,
+    and new keys become current.
+    """
+    
+    @property
+    def public_keys(self):
+        """
+        Get the public keys established by this rotation.
+        
+        These are the keys that become current after this rotation event
+        is accepted into the KEL.
+        
+        Returns:
+            List[PublicKey]: The new current public keys.
+        """
+        from .crypto import PublicKey
+        # KERI stores the new current keys in the rotation event's verfers
+        verfers = self._sad.verfers
+        return [PublicKey(v.qb64) for v in verfers]
+    
+    @property
+    def next_key_commitments(self):
+        """
+        Get the next key commitments (pre-rotation digests).
+        
+        These are cryptographic commitments (hashes) to the keys that
+        will be used in the NEXT rotation. This is KERI's pre-rotation
+        security mechanism - even if current keys are compromised, an
+        attacker cannot rotate without knowing the pre-committed next keys.
+        
+        Returns:
+            List[str]: qb64 digests of next keys.
+        """
+        # In KERI, 'n' is the field for next key digests
+        return self._sad.sad.get('n', [])
+    
     def __repr__(self):
         return f"RotationEvent(aid='{self.aid}', sequence={self.sequence})"
 
 class InteractionEvent(Event):
     """Represents an Interaction Event (ixn)."""
-    @property
-    def anchors(self) -> list:
-        """Return the list of seals (anchors) in this interaction event."""
-        return self.data.get(Fields.SEALS, [])
-
     @classmethod
     def deserialize(cls, raw: bytes) -> "Event":
         """Reconstruct the event from bytes using factory logic."""
