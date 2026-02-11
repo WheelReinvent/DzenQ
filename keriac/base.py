@@ -280,3 +280,9 @@ class SAD(Serializable):
 
     def __repr__(self):
         return f"{self.__class__.__name__}(said='{self.said}')"
+
+    def __eq__(self, other):
+        if isinstance(other, SAD):
+            return self.raw == other.raw
+        return False
+

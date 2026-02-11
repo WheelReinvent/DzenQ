@@ -27,8 +27,10 @@ class Event(SAD):
             
         # Determine the correct subclass based on ilk
         ilk = serder.ilk
-        if ilk in (coring.Ilks.icp, coring.Ilks.dip):
+        if ilk == coring.Ilks.icp:
             subclass = InceptionEvent
+        elif ilk == coring.Ilks.dip:
+            subclass = DelegatedInceptionEvent
         elif ilk in (coring.Ilks.rot, coring.Ilks.drt):
             subclass = RotationEvent
         elif ilk == coring.Ilks.ixn:
@@ -83,6 +85,28 @@ class InceptionEvent(Event):
     """Represents an Inception Event (icp) or Delegated Inception Event (dip)."""
     def __repr__(self):
         return f"InceptionEvent(aid='{self.aid}', sequence={self.sequence})"
+
+class DelegatedInceptionEvent(InceptionEvent):
+    """
+    Represents a Delegated Inception Event (dip).
+    
+    A delegated identifier owes its existence to a delegator identifier.
+    The inception event of the delegate is anchored in the KEL of the delegator.
+    """
+    
+    @property
+    def delegator(self) -> AID:
+        """
+        The AID of the delegator.
+        
+        Returns:
+            AID: The delegator's identifier.
+        """
+        return AID(self.data.get('di'))
+
+    def __repr__(self):
+        return f"DelegatedInceptionEvent(aid='{self.aid}', delegator='{self.delegator}', sequence={self.sequence})"
+
 
 class RotationEvent(Event):
     """

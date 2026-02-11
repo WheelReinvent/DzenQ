@@ -13,7 +13,7 @@ class Identity:
     It manages the underlying Hab (Habitat) and database.
     """
 
-    def __init__(self, name: str, *, salt: str = None, bran: str = None, tier: str = None, base: str = "", **kwargs):
+    def __init__(self, name: str, *, salt: str = None, bran: str = None, tier: str = None, base: str = "", temp: bool = True, **kwargs):
         """
         Initialize an Identity environment.
         
@@ -29,10 +29,11 @@ class Identity:
             bran (str, optional): Passphrase/salt material (at least 21 chars).
             tier (str, optional): Security tier (low, med, high).
             base (str, optional): Directory prefix for database isolation.
+            temp (bool, optional): Whether to use temporary storage (default True).
             **kwargs: Additional parameters passed to the underlying Hab.
         """
         # We'll use Habery to manage the habitats.
-        self._hby = habbing.Habery(name=name, temp=True, salt=salt, bran=bran, tier=tier, base=base)
+        self._hby = habbing.Habery(name=name, temp=temp, salt=salt, bran=bran, tier=tier, base=base)
         self._hab = self._hby.makeHab(name=name, **kwargs)
 
     @property
@@ -129,6 +130,40 @@ class Identity:
         keri_verfer = self._hab.kever.verfers[0]
         return PublicKey(keri_verfer.qb64)
     
+    def delegate(self, name: str, **kwargs) -> 'Identity':
+        """
+        Create a new delegated identifier anchored to this identity.
+
+        This methods creates a new Identity whose inception is delegated
+        by the current Identity. This establishes a hierarchical trust chain.
+
+        The Delegation Process:
+        1. A new 'delegate' Identity is created with 'delpre' set to this Identity's AID.
+        2. This generates a Delegated Inception Event (dip).
+        3. This Identity (delegator) anchors the 'dip' event in its own KEL.
+           This step is CRITICAL: without it, the delegate is not valid.
+
+        Args:
+            name (str): The alias for the new delegated identity.
+            **kwargs: Additional arguments for Identity creation (salt, etc.).
+
+        Returns:
+            Identity: The newly created and anchored delegated identity.
+        """
+        # 1. Create the delegate identity
+        # We pass self.aid (qb64) as delpre
+        delegate_identity = Identity(name=name, delpre=str(self.aid), **kwargs)
+
+        # 2. Get the delegate's inception event
+        # The identity init already created the event in its habitat
+        delegate_event = list(delegate_identity.kel)[0]
+
+        # 3. Anchor the delegate's inception in our KEL
+        # We need to seal the delegate's inception event digest
+        self.anchor(delegate_event)
+
+        return delegate_identity
+
     def rotate(self, *, 
                data: Union['Seal', List['Seal']] = None, 
                witness_threshold: int = None,
