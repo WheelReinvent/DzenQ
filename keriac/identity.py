@@ -40,11 +40,40 @@ class Identity:
         # We'll use Habery to manage the habitats.
         self._hby = habbing.Habery(name=name, temp=temp, salt=salt, bran=bran, tier=tier, base=base)
         self._hab = self._hby.makeHab(name=name, **kwargs)
+        self._aid = None  # Explicit AID override (for Remote identities)
 
     @property
     def aid(self) -> AID:
         """The Autonomous Identifier (AID) of this entity (qb64)."""
+        if self._aid:
+            return AID(self._aid)
         return AID(self._hab.pre)
+
+    @property
+    def is_controller(self) -> bool:
+        """
+        Check if this Identity is a Controller (has private keys).
+        
+        Returns:
+            bool: True if we control this Identity, False if Remote/Observer.
+        """
+        return self._hab is not None
+
+    def create_card(self, role: str = "controller") -> 'Card':
+        """
+        Create a Card (OOBI) for this Identity.
+        
+        Args:
+            role (str): The role for the OOBI (default: "controller").
+            
+        Returns:
+            Card: A Card instance containing the OOBI URL.
+            
+        Raises:
+            ValueError: If this is a Remote Identity (no keys).
+        """
+        from .discovery import Card
+        return Card.issue(self, role=role)
 
 
     def anchor(self, data=None, **kwargs) -> Event:
@@ -94,12 +123,20 @@ class Identity:
         """
         Sign arbitrary data with this identity's current signing key.
         
+        Only available for Controller identities (not Remote).
+        
         Args:
             data: The bytes to sign.
             
         Returns:
             Signature: The cryptographic signature.
+            
+        Raises:
+            ValueError: If this is a Remote identity (no keys).
         """
+        if not self.is_controller:
+            raise ValueError("Cannot sign with Remote Identity (no private keys)")
+        
         from .crypto import Signature
         # Use Hab's sign method which returns a list of Sigers
         sigers = self._hab.sign(ser=data)
@@ -113,6 +150,8 @@ class Identity:
         This is the fundamental security check in KERI. Even if an old key 
         mathematically verifies a signature, this method will return False 
         if that key has been rotated away.
+        
+        Works for both Controller and Remote identities.
         
         Args:
             data: The data that was signed.
@@ -128,11 +167,21 @@ class Identity:
         """
         Get the current public key for this identity.
         
+        Works for both Controller and Remote identities.
+        
         Returns:
             PublicKey: The current verification key.
         """
         # Get the current public key from the KEL
-        keri_verfer = self._hab.kever.verfers[0]
+        # For Remote identities, we use kevers; for Controllers, we use kever
+        if self.is_controller:
+            keri_verfer = self._hab.kever.verfers[0]
+        else:
+            # Remote identity: look up in kevers
+            kever = self._hby.db.kevers.get(str(self.aid))
+            if not kever:
+                raise ValueError(f"No KEL found for Remote Identity {self.aid}")
+            keri_verfer = kever.verfers[0]
         return PublicKey(keri_verfer.qb64)
     
     def delegate(self, name: str, **kwargs) -> 'Identity':
