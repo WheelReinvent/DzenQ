@@ -15,56 +15,56 @@ class ACDC(SAD):
     """
 
     def __init__(self, 
-                 sad_or_raw: Optional[Union[ACDCDict, bytes, str, SAD]] = None,
-                 *,
-                 issuer: Optional[Identity] = None, 
-                 schema: Optional[Union[str, Schema]] = None, 
-                 attributes: Optional[dict] = None, 
-                 recipient: Optional[str] = None,
-                 registry_aid: Optional[str] = None, # Renamed to avoid confusion with registry
-                 source: Optional[Union[dict, list]] = None,
-                 rules: Optional[Union[dict, list]] = None,
-                 **kwargs):
+                 sad_or_raw: Union[ACDCDict, bytes, str, SAD]):
         """
-        Initialize an ACDC.
+        Initialize an ACDC by wrapping existing data.
+        To create a NEW credential, use ACDC.create().
         
-        Style 1: Wrap existing credential
-            ACDC(sad_or_raw)
-            
-        Style 2: Create new credential
-            ACDC(issuer=..., schema=..., attributes=...)
+        Args:
+            sad_or_raw: Existing ACDC data as a dict, bytes, or SAD instance.
         """
-        if sad_or_raw is not None:
-            if any([issuer, schema, attributes]):
-                raise ValueError("Cannot provide both sad_or_raw and creation arguments (issuer, schema, etc.)")
-            super().__init__(sad_or_raw)
-        elif all([issuer, schema, attributes]):
-            
-            # Resolve schema SAID
-            schema_said = registry.resolve_said(schema)
-
-            serder = proving.credential(
-                issuer=issuer.aid,
-                schema=schema_said,
-                data=attributes,
-                recipient=recipient,
-                status=registry_aid,
-                source=source,
-                rules=rules,
-                **kwargs
-            )
-            super().__init__(serder)
-        else:
-            raise ValueError("Must provide either sad_or_raw OR (issuer, schema, and attributes)")
+        super().__init__(sad_or_raw)
 
     @classmethod
-    def create(cls, *args, **kwargs):
+    def create(cls, 
+               issuer: Identity, 
+               schema: Union[str, Schema], 
+               attributes: dict, 
+               recipient: Optional[str] = None,
+               status: Optional[str] = None,
+               source: Optional[Union[dict, list]] = None,
+               rules: Optional[Union[dict, list]] = None,
+               **kwargs) -> "ACDC":
         """
-        [Deprecated] Use ACDC constructor directly.
+        Create a new ACDC credential.
+        
+        Args:
+            issuer: The Identity issuing the credential.
+            schema: Schema instance or alias/SAID.
+            attributes: The data fields for the credential.
+            recipient: Optional AID of the recipient.
+            status: Optional registry AID for status.
+            source: Optional cryptographic source seals.
+            rules: Optional credential rules.
+            **kwargs: Additional fields for proving.credential.
+            
+        Returns:
+            ACDC: A new ACDC instance.
         """
-        import warnings
-        warnings.warn("ACDC.create() is deprecated. Use ACDC() constructor directly.", DeprecationWarning, stacklevel=2)
-        return cls(*args, **kwargs)
+        # Resolve schema SAID
+        schema_said = registry.resolve_said(schema)
+
+        serder = proving.credential(
+            issuer=issuer.aid,
+            schema=schema_said,
+            data=attributes,
+            recipient=recipient,
+            status=status,
+            source=source,
+            rules=rules,
+            **kwargs
+        )
+        return cls(serder)
 
     @property
     def data(self) -> ACDCDict:

@@ -56,7 +56,7 @@ def test_acdc_with_schema_instance(alice):
     # Register it so ACDC can find it for verify_schema
     registry.register(test_schema, "test_msg")
     
-    cred = ACDC(
+    cred = ACDC.create(
         issuer=alice,
         schema=test_schema,
         attributes={"msg": "hello schema"}
@@ -78,7 +78,7 @@ def test_acdc_with_alias(alice):
     custom_schema = Schema(raw_schema)
     registry.register(custom_schema, "status_code")
     
-    cred = ACDC(
+    cred = ACDC.create(
         issuer=alice,
         schema="status_code",
         attributes={"code": 200}
@@ -88,7 +88,7 @@ def test_acdc_with_alias(alice):
     assert cred.verify_schema() is True
     
     # Negative test
-    bad_cred = ACDC(
+    bad_cred = ACDC.create(
         issuer=alice,
         schema="status_code",
         attributes={"code": "broken"} # Should be integer
@@ -98,7 +98,7 @@ def test_acdc_with_alias(alice):
 def test_vlei_alias_creation(alice):
     """Test that standard vLEI aliases work for creation."""
     # We use QVI alias
-    cred = ACDC(
+    cred = ACDC.create(
         issuer=alice,
         schema="vlei_issuer",
         attributes={"dt": "2023-10-27T12:00:00Z", "extra": "data"}

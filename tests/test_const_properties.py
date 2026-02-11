@@ -23,7 +23,7 @@ def test_acdc_properties(alice):
     schema = "EBm9vXQ9y9A9p9v9v9v9v9v9v9v9v9v9v9v9v9v9v9v"
     attributes = {"name": "Alice"}
     
-    cred = ACDC(issuer=alice, schema=schema, attributes=attributes)
+    cred = ACDC.create(issuer=alice, schema=schema, attributes=attributes)
     
     # Check properties
     assert cred.issuer == alice.aid

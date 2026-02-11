@@ -18,7 +18,7 @@ def test_acdc_creation(alice):
     }
     
     # Create ACDC directly
-    cred = ACDC(
+    cred = ACDC.create(
         issuer=alice,
         schema=schema_said,
         attributes=attributes
@@ -43,7 +43,7 @@ def test_acdc_with_recipient(alice):
         "dt": "2023-10-27T12:00:00Z"
     }
     
-    cred = ACDC(
+    cred = ACDC.create(
         issuer=alice,
         schema=schema_said,
         attributes=attributes,
@@ -58,7 +58,7 @@ def test_acdc_wrapping_style(alice):
     attributes = {"name": "John Doe"}
     
     # First create one to get valid SAD data
-    orig = ACDC(issuer=alice, schema=schema, attributes=attributes)
+    orig = ACDC.create(issuer=alice, schema=schema, attributes=attributes)
     sad_data = orig.data
     orig_said = orig.said
     
@@ -73,7 +73,7 @@ def test_acdc_wrapping_style(alice):
 def test_acdc_wrapping_sad_instance(alice):
     """Verify wrapping a SAD instance into ACDC."""
     schema = "EBm9vXQ9y9A9p9v9v9v9v9v9v9v9v9v9v9v9v9v9v9v"
-    orig = ACDC(issuer=alice, schema=schema, attributes={"n": 1})
+    orig = ACDC.create(issuer=alice, schema=schema, attributes={"n": 1})
     
     # Wrapping another SAD instance
     new_acdc = ACDC(orig)
@@ -82,22 +82,12 @@ def test_acdc_wrapping_sad_instance(alice):
     assert new_acdc.said == orig.said
     assert new_acdc._sad is orig._sad
 
-def test_acdc_ambiguous_creation(alice):
-    """Verify error when both wrapping and creation arguments are provided."""
-    with pytest.raises(ValueError, match="Cannot provide both sad_or_raw and creation arguments"):
-        ACDC({"v": "1"}, issuer=alice, schema="S", attributes={})
-
-def test_acdc_missing_args(alice):
-    """Verify error when missing required creation arguments."""
-    with pytest.raises(ValueError, match="Must provide either sad_or_raw OR"):
-        ACDC(issuer=alice) # missing schema and attributes
-
 def test_acdc_json_representation(alice):
     """Test JSON representation properties of ACDC."""
     schema_said = "EM9M_xyz_dummy_schema_said_1234567890" 
     attributes = {"name": "Alice"}
     
-    cred = ACDC(issuer=alice, schema=schema_said, attributes=attributes)
+    cred = ACDC.create(issuer=alice, schema=schema_said, attributes=attributes)
     
     # Test .json property
     json_str = cred.json
