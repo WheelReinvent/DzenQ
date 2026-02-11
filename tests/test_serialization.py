@@ -1,5 +1,5 @@
 import pytest
-from keriac import SAD, SAID, Event, ACDC, pack, unpack, Identity
+from keriac import SAD, SAID, Event, ACDC, pack, unpack, Identity, PublicKey, Signature
 from keriac.event import InceptionEvent, InteractionEvent
 
 def test_said_serialization():
@@ -91,16 +91,29 @@ def test_polymorphic_unpacking():
     ident.close()
 
 @pytest.mark.parametrize("cls, qb64", [
-    (SAID, "ENvO1234567890123456789012345678901234567890"),  # Blake3-256
-    (SAID, "FNvO1234567890123456789012345678901234567890"),  # Blake2b-256
-    (SAID, "GNvO1234567890123456789012345678901234567890"),  # SHA2-256
-    (PublicKey, "DNvO1234567890123456789012345678901234567890"),  # Ed25519
-    (PublicKey, "BNvO1234567890123456789012345678901234567890"),  # Ed25519 Non-trans
-    (PublicKey, "1AAANvO1234567890123456789012345678901234567890"),  # ECDSA SECP256K1
-    (Signature, "0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"), # Ed25519 Sig
+    (SAID, "EGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRk"),  # Blake3-256
+    (SAID, "FGVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVl"),  # Blake2b-256
+    (SAID, "IGZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZm"),  # SHA2-256
+    (PublicKey, "DGFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"),  # Ed25519
+    (PublicKey, "BGJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJi"),  # Ed25519 Non-trans
+    (PublicKey, "1AAAY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2Nj"),  # ECDSA SECP256K1
+    (Signature, "AABnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dn"), # Ed25519 Sig ('A')
+    (Signature, "CABoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGhoaGho"), # ECDSA Sig ('C')
 ])
 def test_various_prefixes_serialization(cls, qb64):
-    """Test that various KERI primitive types with different prefixes can be serialized/deserialized."""
+    """
+    Test that various KERI primitive types with different prefixes can be serialized/deserialized.
+
+    Prefix Explanations:
+    - 'E': Blake3-256 digest (SAID). Used for self-addressing identifiers.
+    - 'F': Blake2b-256 digest (SAID). Another supported hash algorithm.
+    - 'I': SHA2-256 digest (SAID). Standard SHA-2 digest.
+    - 'D': Ed25519 public key (Transferable). The default signing key type in KERI.
+    - 'B': Ed25519 public key (Non-transferable). Used for one-time rotation keys or witness identifiers.
+    - '1AAA': ECDSA SECP256K1 public key. Supports Bitcoin/Ethereum curve keys.
+    - 'A': Ed25519 signature. Standard signature for Ed25519 keys.
+    - 'C': ECDSA SECP256K1 signature. Standard signature for SECP256K1 keys.
+    """
     original = cls(qb64)
     raw = original.serialize()
     
@@ -118,11 +131,11 @@ def test_various_prefixes_serialization(cls, qb64):
 def test_mixed_type_stream_serialization():
     """Test polymorphic unpacking of a complex stream containing various types."""
     objs = [
-        SAID("ENvO1234567890123456789012345678901234567890"),
-        PublicKey("DNvO1234567890123456789012345678901234567890"),
-        Signature("0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"),
-        SAID("FNvO1234567890123456789012345678901234567890"),
-        PublicKey("1AAANvO1234567890123456789012345678901234567890")
+        SAID("EGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRk"),
+        PublicKey("DGFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"),
+        Signature("AABnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dnZ2dn"),
+        SAID("FGVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVl"),
+        PublicKey("1AAAY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2Nj")
     ]
     
     stream = pack(objs)
@@ -132,3 +145,5 @@ def test_mixed_type_stream_serialization():
     for i, obj in enumerate(objs):
         assert unpacked[i] == obj
         assert isinstance(unpacked[i], obj.__class__)
+
+

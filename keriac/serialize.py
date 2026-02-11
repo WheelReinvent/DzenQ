@@ -1,6 +1,7 @@
 from typing import Type, TypeVar, Union, Iterable, List
 from .base import Serializable
 
+from keri import kering
 from keri.kering import sniff, Colds, Protocols
 from keri.core.serdering import Serdery
 from .base import SAID, SAD
@@ -54,16 +55,23 @@ def unpack(raw: bytes, cls: Type[T] = None) -> List[Union[T, Serializable]]:
             del ims[:obj.size]
             continue
         
+        reaped = False
         if cold == Colds.msg:
-            # Polymorphic message reaping using KERI's Serdery
-            serder = serdery.reap(ims)
-            if serder.proto == Protocols.keri:
-                results.append(Event(serder))
-            elif serder.proto == Protocols.acdc:
-                results.append(ACDC(serder))
-            else:
-                results.append(SAD(serder))
-        else:
+            try:
+                # Polymorphic message reaping using KERI's Serdery
+                serder = serdery.reap(ims)
+                if serder.proto == Protocols.keri:
+                    results.append(Event(serder))
+                elif serder.proto == Protocols.acdc:
+                    results.append(ACDC(serder))
+                else:
+                    results.append(SAD(serder))
+                reaped = True
+            except (kering.VersionError, kering.ProtocolError, kering.ValidationError, ValueError):
+                # Fallback to primitive parsing if message parsing fails
+                pass
+
+        if not reaped:
 
             # Extract first sextet to find hard size
             first = nabSextets(ims, 1)
