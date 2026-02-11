@@ -1,10 +1,14 @@
-from typing import Union, List, Any
+from typing import Union, List, Any, TYPE_CHECKING
 from keri.app import habbing
 
 from .base import AID
 from .event import Event
 from .event_log import KEL
 from .crypto import PublicKey, PrivateKey, Signature
+
+if TYPE_CHECKING:
+    from .registry import Registry
+    from .acdc import ACDC
 
 
 class Identity:
@@ -225,6 +229,59 @@ class Identity:
             **kwargs
         )
         return Event(raw)
+
+    def create_registry(self, name: str) -> 'Registry':
+        """
+        Create a new Verifiable Data Registry (VDR) anchored to this identity.
+
+        Args:
+            name (str): The alias for the new registry.
+
+        Returns:
+            Registry: The newly created and committed registry.
+        """
+        from .registry import Registry
+        registry = Registry(issuer=self, name=name)
+        registry.commit()
+        return registry
+
+    def issue_credential(self, data: dict, registry: 'Registry', schema: Any = None, **kwargs) -> 'ACDC':
+        """
+        Issue a credential using the provided registry.
+
+        This process:
+        1. Creates a signed ACDC credential.
+        2. Generates an issuance event (iss) in the registry.
+        3. Anchors the issuance in this identity's KEL.
+
+        Args:
+            data (dict): The credential attributes.
+            registry (Registry): The registry to issue against.
+            schema (Schema, optional): The schema for the credential.
+            **kwargs: Additional arguments for ACDC creation.
+
+        Returns:
+            ACDC: The issued and anchored credential.
+        """
+        from .acdc import ACDC
+
+        # 1. Create the ACDC
+        # We pass the registry AID as the 'status' field in the credential
+        acdc = ACDC.create(
+            issuer=self,
+            schema=schema,
+            attributes=data,
+            status=str(registry.reg_k),
+            **kwargs
+        )
+
+        # 2. Issue against the registry (creates and anchors 'iss' event)
+        registry.issue(credential=acdc)
+
+        # 3. Attach registry reference for convenience (acdc.revoke())
+        acdc.registry = registry
+
+        return acdc
 
     def close(self):
         """Close the underlying database and resources."""

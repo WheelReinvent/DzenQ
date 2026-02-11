@@ -1,10 +1,13 @@
-from typing import Union, Optional
+from typing import Union, Optional, TYPE_CHECKING
 from keri.vc import proving
 
 from .identity import Identity
 from .base import SAD, AID, SAID, Fields
 from .types import ACDCDict
 from .schema import Schema, registry
+
+if TYPE_CHECKING:
+    from .registry import Registry
 
 
 class ACDC(SAD):
@@ -114,3 +117,46 @@ class ACDC(SAD):
 
     def __repr__(self):
         return f"ACDC(said='{self.said}')"
+
+    # --- TEL / Registry Integration ---
+
+    @property
+    def registry(self) -> Optional['Registry']:
+        """
+        The Registry instance associated with this credential.
+        Attached at runtime if issued via Identity.issue_credential.
+        """
+        return getattr(self, '_registry', None)
+
+    @registry.setter
+    def registry(self, value: 'Registry'):
+        self._registry = value
+
+    def revoke(self):
+        """
+        Revoke this credential.
+        Requires the credential to be attached to a Registry (via issue_credential).
+        """
+        if not self.registry:
+            raise ValueError("Cannot revoke: Registry instance not attached to this credential.")
+        
+        self.registry.revoke(self)
+
+    @property
+    def revoked(self) -> bool:
+        """
+        Check if the credential is revoked.
+        """
+        # In a real system, this would query the DB/Ledger using self.status (Registry AID)
+        # For now, we delegate to the attached registry if present
+        if self.registry:
+            # This is a bit circular/mock-ish without a DB.
+            # We assume if we have a registry, we can ask it.
+            # But the Registry.status method is also a placeholder.
+            return False 
+        return False
+        
+    def is_revoked(self) -> bool:
+        """Alias for revoked property."""
+        return self.revoked
+
