@@ -83,5 +83,10 @@ class ACDC(SAD):
         from .const import Fields
         return self.data[Fields.ATTRIBUTES]
 
+    @classmethod
+    def deserialize(cls, raw: bytes) -> "ACDC":
+        """Reconstruct ACDC from bytes."""
+        return cls(raw)
+
     def __repr__(self):
         return f"ACDC(said='{self.said}')"

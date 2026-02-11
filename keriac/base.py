@@ -4,14 +4,34 @@ from typing import Optional
 from keri.core import coring
 
 from .const import Fields
+from .serialize import Serializable
 from .types import SADDict
 
 
-class SAID(str):
+class SAID(str, Serializable):
     """
     Self-Addressing Identifier (SAID).
     Inherits from str for easy usage as a string while providing utility methods.
     """
+
+    @property
+    def size(self) -> int:
+        """The size of the binary SAID (qb2)."""
+        from keri.core.coring import Saider
+        return len(Saider(qb64=str(self)).qb2)
+
+    def serialize(self) -> bytes:
+        """Return the binary CESR (qb2) representation."""
+        from keri.core.coring import Saider
+        return Saider(qb64=str(self)).qb2
+
+    @classmethod
+    def deserialize(cls, raw: bytes) -> "SAID":
+        """Reconstruct SAID from binary bytes (qb2)."""
+        from keri.core.coring import Saider
+        # Saider handles extracting exactly one SAID from the start of raw
+        saider = Saider(qb2=raw)
+        return cls(saider.qb64)
 
     def __repr__(self):
         return f"SAID('{str(self)}')"
@@ -28,7 +48,7 @@ class AID(SAID):
         return f"AID('{str(self)}')"
 
 
-class SAD:
+class SAD(Serializable):
     """
     Self-Addressing Data (SAD) base class.
     Represents an object that has a Self-Addressing Identifier (SAID).
@@ -114,6 +134,20 @@ class SAD:
                     raise ValueError(f"Could not parse string as SAD: {sad_or_raw}") from None
         else:
             raise ValueError(f"Unsupported type for SAD initialization: {type(sad_or_raw)}")
+
+    @property
+    def size(self) -> int:
+        """The size of the serialized object in bytes."""
+        return len(self.raw)
+
+    def serialize(self) -> bytes:
+        """Return the raw bytes (CESR wire format)."""
+        return self.raw
+
+    @classmethod
+    def deserialize(cls, raw: bytes) -> "SAD":
+        """Reconstruct SAD from bytes."""
+        return cls(raw)
 
     @property
     def data(self) -> SADDict:

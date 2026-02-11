@@ -1,6 +1,5 @@
 from typing import Iterator
 from .event import Event, InteractionEvent
-from .base import SAD
 class KEL:
     """
     KEL (Key Event Log) provides an iterable interface to an identity's event history.

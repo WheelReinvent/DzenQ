@@ -91,5 +91,10 @@ class InteractionEvent(Event):
         """Return the list of seals (anchors) in this interaction event."""
         return self.data.get(Fields.SEALS, [])
 
+    @classmethod
+    def deserialize(cls, raw: bytes) -> "Event":
+        """Reconstruct the event from bytes using factory logic."""
+        return cls(raw)
+
     def __repr__(self):
         return f"InteractionEvent(aid='{self.aid}', sequence={self.sequence})"
