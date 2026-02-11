@@ -2,7 +2,7 @@ from .serialize import Serializable, pack, unpack
 from .crypto import PublicKey, Signature, PrivateKey
 from .base import SAD, AID, SAID
 from .const import Schemas
-from .schema import Schema, registry
+from .schema import Schema, schema_registry
 from .event import Event, InceptionEvent, RotationEvent, InteractionEvent, DelegatedInceptionEvent
 from .event_log import KEL
 from .identity import Identity
@@ -20,7 +20,7 @@ __all__ = [
     "SAID",
     "Schemas",
     "Schema",
-    "registry",
+    "schema_registry",
     "Event",
     "InceptionEvent",
     "DelegatedInceptionEvent",

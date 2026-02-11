@@ -139,4 +139,4 @@ class SchemaRegistry:
         self._aliases["ecr"] = Schemas.ECR
 
 # Global singleton
-registry = SchemaRegistry()
+schema_registry = SchemaRegistry()

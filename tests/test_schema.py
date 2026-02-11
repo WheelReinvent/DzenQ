@@ -1,7 +1,7 @@
 import json
 from typing import Dict
 import pytest
-from keriac import ACDC, Identity, Schema, registry
+from keriac import ACDC, Identity, Schema, schema_registry
 from keriac.base import SAID
 from keriac.const import Schemas
 @pytest.fixture
@@ -36,10 +36,10 @@ def test_schema_basic():
 
 def test_registry_lookup():
     """Test vLEI alias lookup in registry."""
-    qvi_said = registry.resolve_said("qvi")
+    qvi_said = schema_registry.resolve_said("qvi")
     assert qvi_said == Schemas.QVI
     
-    le_said = registry.resolve_said("Legal_Entity")
+    le_said = schema_registry.resolve_said("Legal_Entity")
     assert le_said == Schemas.LE
 
 def test_acdc_with_schema_instance(alice):
@@ -54,7 +54,7 @@ def test_acdc_with_schema_instance(alice):
     test_schema = Schema(raw_schema)
     
     # Register it so ACDC can find it for verify_schema
-    registry.register(test_schema, "test_msg")
+    schema_registry.register(test_schema, "test_msg")
     
     cred = ACDC.create(
         issuer=alice,
@@ -76,7 +76,7 @@ def test_acdc_with_alias(alice):
         }
     }
     custom_schema = Schema(raw_schema)
-    registry.register(custom_schema, "status_code")
+    schema_registry.register(custom_schema, "status_code")
     
     cred = ACDC.create(
         issuer=alice,

@@ -9,6 +9,7 @@ from .crypto import PublicKey, PrivateKey, Signature
 if TYPE_CHECKING:
     from .registry import Registry
     from .acdc import ACDC
+    from .presentation import Presentation
 
 
 class Identity:
@@ -245,7 +246,7 @@ class Identity:
         registry.commit()
         return registry
 
-    def issue_credential(self, data: dict, registry: 'Registry', schema: Any = None, **kwargs) -> 'ACDC':
+    def issue_credential(self, data: dict, registry: 'Registry', schema: Any = None, recipient: Any = None, **kwargs) -> 'ACDC':
         """
         Issue a credential using the provided registry.
 
@@ -258,6 +259,7 @@ class Identity:
             data (dict): The credential attributes.
             registry (Registry): The registry to issue against.
             schema (Schema, optional): The schema for the credential.
+            recipient (str or AID, optional): The recipient's AID.
             **kwargs: Additional arguments for ACDC creation.
 
         Returns:
@@ -271,6 +273,7 @@ class Identity:
             issuer=self,
             schema=schema,
             attributes=data,
+            recipient=str(recipient) if recipient else None,
             status=str(registry.reg_k),
             **kwargs
         )
@@ -282,6 +285,22 @@ class Identity:
         acdc.registry = registry
 
         return acdc
+
+    def verify_presentation(self, presentation: 'Presentation') -> bool:
+        """
+        Verify a credential presentation.
+        
+        Checks:
+        1. Credential cryptographic integrity (SAID/Signature).
+        2. Revocation status (against Registry).
+        
+        Args:
+            presentation (Presentation): The presentation to verify.
+            
+        Returns:
+            bool: True if valid.
+        """
+        return presentation.verify()
 
     def close(self):
         """Close the underlying database and resources."""

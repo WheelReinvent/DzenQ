@@ -1,13 +1,14 @@
-from typing import Union, Optional, TYPE_CHECKING
+from typing import Union, Optional, TYPE_CHECKING, List
 from keri.vc import proving
 
 from .identity import Identity
 from .base import SAD, AID, SAID, Fields
 from .types import ACDCDict
-from .schema import Schema, registry
+from .schema import Schema, schema_registry
 
 if TYPE_CHECKING:
     from .registry import Registry
+    from .presentation import Presentation
 
 
 class ACDC(SAD):
@@ -55,7 +56,7 @@ class ACDC(SAD):
             ACDC: A new ACDC instance.
         """
         # Resolve schema SAID
-        schema_said = registry.resolve_said(schema)
+        schema_said = schema_registry.resolve_said(schema)
 
         serder = proving.credential(
             issuer=issuer.aid,
@@ -87,7 +88,7 @@ class ACDC(SAD):
     @property
     def schema_instance(self) -> Optional[Schema]:
         """Try to get the Schema instance from registry."""
-        return registry.get(self.schema)
+        return schema_registry.get(self.schema)
 
     def verify_schema(self) -> bool:
         """
@@ -118,6 +119,35 @@ class ACDC(SAD):
     def __repr__(self):
         return f"ACDC(said='{self.said}')"
 
+    @property
+    def recipient(self) -> Optional[AID]:
+        """The Recipient AID (if any)."""
+        from .const import Fields
+        # 'i' in the 'a' block (attributes) is usually the subject/recipient
+        # But in KERI ACDC, recipient can be top-level or in attributes depending on version/spec.
+        # keri.vc.proving.credential puts recipient in top level subject 'i' usually? 
+        # Let's check constructor: subject['i'] = recipient.
+        # So it is inside the 'a' (attributes) block usually, but referred to as subject.
+        
+        # We access the 'a' block
+        attrs = self.attributes
+        if 'i' in attrs:
+            return AID(attrs['i'])
+        return None
+
+    def present(self, disclose_fields: Optional[List[str]] = None) -> 'Presentation':
+        """
+        Create a Presentation from this credential.
+        
+        Args:
+            disclose_fields (list): Attributes to reveal.
+            
+        Returns:
+            Presentation: The presentation object.
+        """
+        from .presentation import Presentation
+        return Presentation(credential=self, disclose_fields=disclose_fields)
+    
     # --- TEL / Registry Integration ---
 
     @property
@@ -150,10 +180,8 @@ class ACDC(SAD):
         # In a real system, this would query the DB/Ledger using self.status (Registry AID)
         # For now, we delegate to the attached registry if present
         if self.registry:
-            # This is a bit circular/mock-ish without a DB.
-            # We assume if we have a registry, we can ask it.
-            # But the Registry.status method is also a placeholder.
-            return False 
+            status = self.registry.status(self)
+            return status == "Revoked"
         return False
         
     def is_revoked(self) -> bool:
