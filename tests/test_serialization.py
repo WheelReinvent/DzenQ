@@ -64,7 +64,28 @@ def test_event_batch_serialization():
     
     ident.close()
 
-def test_mixed_unsupported():
-    # Unpacking requires all objects of the same class in our simple implementation
-    # unless we create a more complex poly-unpacker.
-    pass
+def test_polymorphic_unpacking():
+    ident = Identity(name="alice")
+    cred_said = "ENvO1234567890123456789012345678901234567890"
+    ident.anchor(cred_said)
+    
+    # Let's pack: SAID, an Event (last interaction), and another SAID
+    said1 = SAID("ENvO1234567890123456789012345678901234567890")
+    event = list(ident.kel)[-1]
+    said2 = SAID("EAvO1234567890123456789012345678901234567890")
+    
+    stream = pack([said1, event, said2])
+    
+    # Unpack polymorphicly (no cls argument)
+    unpacked = unpack(stream)
+    
+    assert len(unpacked) == 3
+    assert isinstance(unpacked[0], SAID)
+    assert isinstance(unpacked[1], InteractionEvent)
+    assert isinstance(unpacked[2], SAID)
+    
+    assert unpacked[0] == said1
+    assert unpacked[1].said == event.said
+    assert unpacked[2] == said2
+    
+    ident.close()

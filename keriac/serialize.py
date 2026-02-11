@@ -43,27 +43,50 @@ def pack(objs: Union[Serializable, Iterable[Serializable]]) -> bytes:
     
     return b"".join(obj.serialize() for obj in objs)
 
-def unpack(raw: bytes, cls: Type[T]) -> List[T]:
+def unpack(raw: bytes, cls: Type[T] = None) -> List[Union[T, Serializable]]:
     """
-    Unpack one or more objects of type 'cls' from a CESR byte stream.
+    Unpack one or more Serializable objects from a CESR byte stream.
     
     Args:
         raw: The CESR byte stream to unpack.
-        cls: The Serializable subclass to instantiate for each object.
+        cls: Optional specific class to force unpacking. If None, uses polymorphic detection.
         
     Returns:
-        List[T]: A list of unpacked object instances.
+        List: A list of unpacked object instances.
     """
+    from keri.kering import sniff, Colds, Protocols
+    from keri.core.serdering import Serdery
+    from .base import SAID, SAD
+    from .event import Event
+    from .acdc import ACDC
+
     results = []
-    view = memoryview(raw)
+    ims = bytearray(raw)  # Serdery.reap and Matter classes use stripping on bytearrays
+    serdery = Serdery()
     
-    while len(view) > 0:
-        # Pass the remaining stream to deserialize.
-        # The subclass is responsible for parsing only its own part.
-        obj = cls.deserialize(bytes(view))
-        results.append(obj)
+    while ims:
+        cold = sniff(ims)
         
-        # Advance the view by the actual size of the unpacked object
-        view = view[obj.size:]
-        
+        if cls:
+            # Force unpacking into the requested class
+            obj = cls.deserialize(bytes(ims))
+            results.append(obj)
+            del ims[:obj.size]
+            continue
+
+        if cold == Colds.msg:
+            # Polymorphic message reaping using KERI's Serdery
+            serder = serdery.reap(ims)
+            if serder.proto == Protocols.keri:
+                results.append(Event(serder))
+            elif serder.proto == Protocols.acdc:
+                results.append(ACDC(serder))
+            else:
+                results.append(SAD(serder))
+        else:
+            # Assume binary material (defaulting to SAID for keriac)
+            obj = SAID.deserialize(bytes(ims))
+            results.append(obj)
+            del ims[:obj.size]
+            
     return results
