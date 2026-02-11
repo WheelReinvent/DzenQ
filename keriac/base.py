@@ -74,8 +74,13 @@ class SAD(Serializable):
                 # Try KERI Event first (strict)
                 return SerderKERI(sad=sad, raw=raw)
             except Exception:
-                # Fallback to general SAD
-                return Serder(sad=sad, raw=raw)
+                try:
+                    # Try Schema (Schemer)
+                    from keri.core import scheming
+                    return scheming.Schemer(sed=sad, raw=raw)
+                except Exception:
+                    # Fallback to general SAD
+                    return Serder(sad=sad, raw=raw)
 
         if isinstance(sad_or_raw, SAD):
             self._sad = sad_or_raw._sad
@@ -90,16 +95,21 @@ class SAD(Serializable):
                  from keri.core import coring
                  sad = sad_or_raw.copy()
                  # Only generate SAID if it's missing or empty
-                 if not sad.get('d'):
-                     _, sad = coring.Saider.saidify(sad=sad)
+                 # Check both 'd' (standard) and '$id' (schema)
+                 label = 'd'
+                 if '$id' in sad:
+                     label = '$id'
+                 
+                 if not sad.get(label):
+                     _, sad = coring.Saider.saidify(sad=sad, label=label)
                  
                  try:
                      self._sad = load_sad(sad=sad)
                  except Exception:
                      # Fallback for non-KERI SADs (no version string)
                      self._manual_data = sad
-                     # Extract SAID from 'd' if it's there
-                     self._manual_said = sad.get('d')
+                     # Extract SAID from the discovered label
+                     self._manual_said = sad.get(label)
                      import json
                      self._manual_raw = json.dumps(sad, separators=(',', ':')).encode("utf-8")
             except Exception:
@@ -153,7 +163,10 @@ class SAD(Serializable):
     def data(self) -> SADDict:
         """The internal dictionary representation (SAD) of the object."""
         if self._sad:
-            return self._sad.sad
+            if hasattr(self._sad, 'sad'):
+                return self._sad.sad
+            elif hasattr(self._sad, 'sed'): # Schemer uses sed
+                return self._sad.sed
         return self._manual_data
 
     @property
@@ -202,9 +215,15 @@ class SAD(Serializable):
             bool: True if verified, False otherwise.
         """
         try:
-            saider = coring.Saider(qb64=str(self.said))
+            from keri.core import coring
+            # Determine label
+            label = 'd'
+            if '$id' in self.data:
+                label = '$id'
+            
+            saider = coring.Saider(qb64=str(self.said), label=label)
             # Verification against dict is generally safer for flexible SADs
-            return saider.verify(sad=self.data)
+            return saider.verify(sad=self.data, label=label)
         except Exception:
             return False
     

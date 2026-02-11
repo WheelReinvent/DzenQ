@@ -84,7 +84,7 @@ class Identity:
         """Access the Key Event Log (KEL) for this identity."""
         return KEL(self._hab)
     
-    def sign(self, data: bytes) -> Signature:
+    def sign(self, data: bytes) -> 'Signature':
         """
         Sign arbitrary data with this identity's current signing key.
         
@@ -100,7 +100,7 @@ class Identity:
         # Return the first signature
         return Signature(sigers[0].qb64)
     
-    def verify(self, data: bytes, signature: Signature) -> bool:
+    def verify(self, data: bytes, signature: 'Signature') -> bool:
         """
         Verify that data was signed by this identity's CURRENT authorized key.
         
@@ -118,7 +118,7 @@ class Identity:
         return self.public_key.verify(data, signature)
     
     @property
-    def public_key(self) -> PublicKey:
+    def public_key(self) -> 'PublicKey':
         """
         Get the current public key for this identity.
         
