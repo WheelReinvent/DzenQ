@@ -31,3 +31,20 @@ class ACDCDict(SADDict):
     s: str              # Schema SAID
     a: Dict[str, Any]   # Attributes
     ri: Optional[str]   # Recipient AID
+
+class DigestSeal(TypedDict):
+    """Seal pointing to a SAD's digest."""
+    d: str  # SAID/Digest
+
+class EventSeal(TypedDict):
+    """Seal pointing to a specific KEL event."""
+    i: str  # AID
+    s: str  # Sequence number (hex)
+    d: str  # Event digest
+
+class HashSeal(TypedDict):
+    """Seal containing a generic hash (e.g. Merkle root)."""
+    h: str  # Hash
+
+from typing import Union
+Seal = Union[DigestSeal, EventSeal, HashSeal, Dict[str, Any]]

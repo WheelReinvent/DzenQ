@@ -1,3 +1,4 @@
+from typing import Union, List, Any
 from keri.app import habbing
 
 from .base import AID
@@ -12,16 +13,26 @@ class Identity:
     It manages the underlying Hab (Habitat) and database.
     """
 
-    def __init__(self, name: str, **kwargs):
+    def __init__(self, name: str, *, salt: str = None, bran: str = None, tier: str = None, base: str = "", **kwargs):
         """
         Initialize an Identity environment.
         
+        KERI Key Management Note:
+        A KERI identity is derived from a secret (seed or passphrase).
+        - If 'salt' is provided, it's used as the qb64 salt (seed) for key derivation.
+        - If 'bran' is provided, it's used as a Base64 passphrase/salt material.
+        - If neither is provided, a random one is generated.
+        
         Args:
             name (str): The human-readable alias for this identity.
+            salt (str, optional): qb64 salt (seed) for key derivation.
+            bran (str, optional): Passphrase/salt material (at least 21 chars).
+            tier (str, optional): Security tier (low, med, high).
+            base (str, optional): Directory prefix for database isolation.
             **kwargs: Additional parameters passed to the underlying Hab.
         """
         # We'll use Habery to manage the habitats.
-        self._hby = habbing.Habery(name=name, temp=True)
+        self._hby = habbing.Habery(name=name, temp=True, salt=salt, bran=bran, tier=tier, base=base)
         self._hab = self._hby.makeHab(name=name, **kwargs)
 
     @property
@@ -89,6 +100,23 @@ class Identity:
         # Return the first signature
         return Signature(sigers[0].qb64)
     
+    def verify(self, data: bytes, signature: Signature) -> bool:
+        """
+        Verify that data was signed by this identity's CURRENT authorized key.
+        
+        This is the fundamental security check in KERI. Even if an old key 
+        mathematically verifies a signature, this method will return False 
+        if that key has been rotated away.
+        
+        Args:
+            data: The data that was signed.
+            signature: The signature to verify.
+            
+        Returns:
+            bool: True if signature is valid and key is current.
+        """
+        return self.public_key.verify(data, signature)
+    
     @property
     def public_key(self) -> PublicKey:
         """
@@ -101,32 +129,40 @@ class Identity:
         keri_verfer = self._hab.kever.verfers[0]
         return PublicKey(keri_verfer.qb64)
     
-    def rotate(self, *, data=None, **kwargs) -> Event:
+    def rotate(self, *, 
+               data: Union['Seal', List['Seal']] = None, 
+               witness_threshold: int = None,
+               cuts: List[str] = None,
+               adds: List[str] = None,
+               current_threshold: Union[int, List[Any]] = None,
+               next_threshold: Union[int, List[Any]] = None,
+               **kwargs) -> Event:
         """
         Rotate the identity's cryptographic keys.
         
         This is KERI's core security feature - rotating keys while maintaining
-        identifier continuity. The new keys are automatically generated and
-        committed via pre-rotation (next key commitments).
+        identifier continuity. 
+        
+        Key Management:
+        - Keys are automatically generated from the Identity's seed/passphrase.
+        - KERI uses "pre-rotation": you commit to the NEXT keys in the CURRENT event.
+        - By default, this method handles the sequence automatically.
         
         Args:
-            data: Optional data to anchor in the rotation event.
-                  Can be a string, dict, SAD object, or list of seal dicts.
-            **kwargs: Advanced parameters (witness configuration, thresholds)
-                     Reserved for future witness/multi-sig support.
+            data: Optional data (Seals) to anchor in the rotation event.
+                  Can be a single Seal dict, a list of Seals, or a SAD object.
+            witness_threshold: New threshold for witness corroboration (bt).
+            cuts: List of witness AIDs to remove.
+            adds: List of witness AIDs to add.
+            current_threshold: Signing threshold for current keys (kt).
+            next_threshold: Signing threshold for next keys (nt).
+            **kwargs: Advanced parameters passed to underlying rotate.
             
         Returns:
             Event: The rotation event containing the key change.
-            
-        Example:
-            >>> alice = Identity(name="alice")
-            >>> old_key = alice.public_key
-            >>> rotation = alice.rotate(data="Upgrading to quantum-resistant keys")
-            >>> new_key = alice.public_key
-            >>> assert alice.aid == original_aid  # AID unchanged
-            >>> assert new_key != old_key  # Keys rotated
         """
-        # Prepare seal data (same logic as anchor())
+        from .types import Seal
+        # Prepare seal data
         seals = []
         if data is not None:
             if isinstance(data, str):
@@ -140,8 +176,19 @@ class Identity:
             else:
                 raise ValueError(f"Unsupported data type for rotation: {type(data)}")
         
-        # Perform rotation using Hab's rotate method
-        raw = self._hab.rotate(data=seals)
+        # KERI Hab.rotate uses specific param names
+        # Mapping our user-friendly names to keripy params if needed
+        # In keripy, rotate() takes: data, isith, nsith, toad, cuts, adds...
+        
+        raw = self._hab.rotate(
+            data=seals,
+            isith=current_threshold,
+            nsith=next_threshold,
+            toad=witness_threshold,
+            cuts=cuts or [],
+            adds=adds or [],
+            **kwargs
+        )
         return Event(raw)
 
     def close(self):
