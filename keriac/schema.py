@@ -1,8 +1,9 @@
 import json
-from typing import Dict, Optional, Union
+from typing import Union, Dict, Optional, override
 from keri.core import scheming
-from .base import SAD
+from .base import SAD, SAID
 from .const import Schemas
+from .types import SADDict, SchemaDict
 
 class Schema(SAD):
     """
@@ -10,7 +11,7 @@ class Schema(SAD):
     Supports JSON Schema 2020-12 and SAIDification.
     """
     
-    def __init__(self, raw_or_dict: Union[bytes, dict, str]):
+    def __init__(self, raw_or_dict: Union[bytes, SchemaDict, dict, str]):
         """
         Initialize a Schema.
         
@@ -19,16 +20,35 @@ class Schema(SAD):
                          or a JSON string.
         """
         super().__init__(raw_or_dict)
-        
-        # We also maintain the schemer for validation logic
-        if self._sad:
-            # Already initialized as a Serder by SAD.__init__
-            self._schemer = scheming.Schemer(raw=self._sad.raw)
-        else:
-            # Falls back to manual data if it was a bare dict
-            self._schemer = scheming.Schemer(sed=self.data)
+        self._schemer = self._sad
 
-    def validate(self, data: bytes) -> bool:
+    @override
+    def _load_internal_repr(self, sad: Optional[dict] = None, raw: Optional[bytes] = None):
+        """Override to load a Schemer instead of a Serder."""
+        return scheming.Schemer(sed=sad, raw=raw)
+
+    @override
+    @property
+    def data(self) -> SADDict:
+        """The underlying JSON Schema dictionary."""
+        return self._sad.sed
+
+    @property
+    def said(self) -> SAID:
+        """The Self-Addressing Identifier (SAID) of the schema."""
+        return SAID(self._schemer.said)
+
+    @property
+    def raw(self) -> bytes:
+        """The raw bytes serialization of the schema."""
+        return self._schemer.raw
+
+    @property
+    def qb64(self) -> str:
+        """The qb64 serialization of the schema."""
+        return self.raw.decode("utf-8")
+
+    def validate(self, data: bytes | dict) -> bool:
         """
         Verify that the provided raw data (JSON bytes) conforms to this schema.
         
@@ -39,23 +59,13 @@ class Schema(SAD):
             bool: True if valid.
         """
         from keri import kering
+        if isinstance(data, dict):
+            data = json.dumps(data).encode("utf-8")
         try:
             return self._schemer.verify(raw=data)
         except (kering.ValidationError, Exception):
             return False
 
-    def verify_dict(self, data: dict) -> bool:
-        """
-        Verify that a dictionary conforms to this schema.
-        
-        Args:
-            data: The dictionary to verify.
-            
-        Returns:
-            bool: True if valid.
-        """
-        raw = json.dumps(data).encode("utf-8")
-        return self.validate(raw)
 
     def __repr__(self):
         return f"Schema(said='{self.said}')"

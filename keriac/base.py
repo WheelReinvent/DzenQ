@@ -1,11 +1,39 @@
 import json
-from typing import Optional
+from typing import Optional, Union, TYPE_CHECKING
 
+from keri.core.serdering import SerderKERI, Serder
 from keri.core import coring
+from keri.core.coring import Saider
 
 from .const import Fields
-from .serialize import Serializable
 from .types import SADDict
+
+
+class Serializable:
+    """
+    Base class for objects that can be serialized/deserialized to/from CESR.
+    """
+
+    @property
+    def size(self) -> int:
+        """
+        Return the size of the serialized object in bytes.
+        Essential for stream-based unpacking.
+        """
+        raise NotImplementedError
+
+    def serialize(self) -> bytes:
+        """
+        Serialize the object to CESR bytes (usually qb2).
+        """
+        raise NotImplementedError
+
+    @classmethod
+    def deserialize(cls, raw: bytes) -> "Serializable":
+        """
+        Create an object instance from the provided CESR bytes.
+        """
+        raise NotImplementedError
 
 
 class SAID(str, Serializable):
@@ -17,18 +45,15 @@ class SAID(str, Serializable):
     @property
     def size(self) -> int:
         """The size of the binary SAID (qb2)."""
-        from keri.core.coring import Saider
         return len(Saider(qb64=str(self)).qb2)
 
     def serialize(self) -> bytes:
         """Return the binary CESR (qb2) representation."""
-        from keri.core.coring import Saider
         return Saider(qb64=str(self)).qb2
 
     @classmethod
     def deserialize(cls, raw: bytes) -> "SAID":
         """Reconstruct SAID from binary bytes (qb2)."""
-        from keri.core.coring import Saider
         # Saider handles extracting exactly one SAID from the start of raw
         saider = Saider(qb2=raw)
         return cls(saider.qb64)
@@ -48,102 +73,113 @@ class AID(SAID):
         return f"AID('{str(self)}')"
 
 
+class GeneralSAD:
+    """
+    Internal wrapper for non-standard KERI SAD dictionaries.
+    Provides .sad, .said, and .raw properties to satisfy the SAD interface
+    when the data is not a strict KERI event or ACDC.
+    """
+    def __init__(self, sad: dict, label: str = 'd'):
+        self.sad = sad
+        self.label = label
+        
+        # Ensure SAID is present
+        if not self.sad.get(self.label):
+             _, self.sad = coring.Saider.saidify(sad=self.sad, label=self.label)
+             
+    @property
+    def said(self) -> str:
+        return self.sad.get(self.label)
+        
+    @property
+    def raw(self) -> bytes:
+        return coring.dumps(self.sad)
+
+
 class SAD(Serializable):
     """
     Self-Addressing Data (SAD) base class.
     Represents an object that has a Self-Addressing Identifier (SAID).
     """
 
-    def __init__(self, sad_or_raw):
+    def __init__(self, sad_or_raw: Union['SAD', SADDict, bytes, str]):
         """
         Initialize a SAD object.
         
         Args:
-            sad_or_raw: A dict (SAD data), bytes/str (raw data), or a Serder instance.
+            sad_or_raw: A dict (SAD data), bytes/str (raw data), or another SAD instance.
         """
-        from keri.core import serdering, coring
-        from keri.core.serdering import SerderKERI, Serder
-        
         self._sad = None
-        self._manual_data = None
-        self._manual_said = None
-        self._manual_raw = None
-
-        def load_sad(sad=None, raw=None):
-            try:
-                # Try KERI Event first (strict)
-                return SerderKERI(sad=sad, raw=raw)
-            except Exception:
-                try:
-                    # Try Schema (Schemer)
-                    from keri.core import scheming
-                    return scheming.Schemer(sed=sad, raw=raw)
-                except Exception:
-                    # Fallback to general SAD
-                    return Serder(sad=sad, raw=raw)
 
         if isinstance(sad_or_raw, SAD):
             self._sad = sad_or_raw._sad
-            self._manual_data = sad_or_raw._manual_data
-            self._manual_said = sad_or_raw._manual_said
-            self._manual_raw = sad_or_raw._manual_raw
-        elif hasattr(sad_or_raw, 'sad') and hasattr(sad_or_raw, 'said'): # Likely a keri Serder
+        elif hasattr(sad_or_raw, 'sad') and hasattr(sad_or_raw, 'said'): # Likely a keri Serder or Schemer
             self._sad = sad_or_raw
         elif isinstance(sad_or_raw, dict):
-            # If it's a raw dict, try to ensuring it has SAID fields using saidify
-            try:
-                 from keri.core import coring
-                 sad = sad_or_raw.copy()
-                 # Only generate SAID if it's missing or empty
-                 # Check both 'd' (standard) and '$id' (schema)
-                 label = 'd'
-                 if '$id' in sad:
-                     label = '$id'
-                 
-                 if not sad.get(label):
-                     _, sad = coring.Saider.saidify(sad=sad, label=label)
-                 
-                 try:
-                     self._sad = load_sad(sad=sad)
-                 except Exception:
-                     # Fallback for non-KERI SADs (no version string)
-                     self._manual_data = sad
-                     # Extract SAID from the discovered label
-                     self._manual_said = sad.get(label)
-                     import json
-                     self._manual_raw = json.dumps(sad, separators=(',', ':')).encode("utf-8")
-            except Exception:
-                 # Fallback if even saidify fails (e.g. no 'd' label allowed), try direct load
-                 self._sad = load_sad(sad=sad_or_raw)
+            # Ensure it has SAID fields using saidify
+            sad = sad_or_raw.copy()
+            label = 'd'
+            if '$id' in sad:
+                label = '$id'
+
+            # Only generate SAID if it's missing or empty
+            if not sad.get(label):
+                _, sad = coring.Saider.saidify(sad=sad, label=label)
+            
+            self._sad = self._load_internal_repr(sad=sad)
         elif isinstance(sad_or_raw, (bytes, bytearray, memoryview)):
-            try:
-                self._sad = load_sad(raw=bytes(sad_or_raw))
-            except Exception:
-                # If it's not a KERI event, it might be a bare JSON SAD
-                import json
-                try:
-                    data = json.loads(bytes(sad_or_raw).decode("utf-8"))
-                    self._manual_data = data
-                    self._manual_said = data.get('d')
-                    self._manual_raw = bytes(sad_or_raw)
-                except Exception:
-                    raise ValueError(f"Could not parse raw data as SAD: {sad_or_raw!r}") from None
+            self._sad = self._load_internal_repr(raw=bytes(sad_or_raw))
         elif isinstance(sad_or_raw, str):
             # Delegate to bytes handling
-            data_bytes = sad_or_raw.encode("utf-8")
-            try:
-                self._sad = load_sad(raw=data_bytes)
-            except Exception:
-                import json
-                try:
-                    data = json.loads(sad_or_raw)
-                    self._manual_data = data
-                    self._manual_said = data.get('d')
-                    self._manual_raw = data_bytes
-                except Exception:
-                    raise ValueError(f"Could not parse string as SAD: {sad_or_raw}") from None
+            self._sad = self._load_internal_repr(raw=sad_or_raw.encode("utf-8"))
         else:
             raise ValueError(f"Unsupported type for SAD initialization: {type(sad_or_raw)}")
+
+        if self._sad is None:
+            raise ValueError(f"Could not initialize SAD from provided data: {sad_or_raw!r}")
+
+    def _load_internal_repr(self, sad: Optional[dict] = None, raw: Optional[bytes] = None):
+        """
+        Template method to load the internal KERI representation.
+        Subclasses (like Schema) should override this to return their specific type.
+        """
+        if raw and not sad:
+            try:
+                # If we only have raw, we MUST be able to parse it as some Serder
+                # to know what it is (including protocol/version).
+                try:
+                    return SerderKERI(raw=raw)
+                except Exception:
+                    return Serder(raw=raw)
+            except Exception:
+                # Fallback: try to deserialize raw into a dict and handle it
+                try:
+                    # Try sniffing kind and loading
+                    from keri.kering import smell
+                    _, _, kind, _, _ = smell(raw)
+                    sad = coring.loads(raw=raw, kind=kind)
+                    if not isinstance(sad, dict):
+                         raise ValueError("Raw data is not a dictionary")
+                except Exception as e:
+                    raise ValueError(f"Data is not a valid KERI/CESR serialization") from e
+
+        # If we have a dict (sad), we try to be helpful
+        if sad and 'v' in sad:
+            try:
+                # Try KERI Event first (strict)
+                return SerderKERI(sad=sad, makify=True)
+            except Exception:
+                try:
+                    # Fallback to general KERI SAD (requires version string)
+                    return Serder(sad=sad, makify=True)
+                except Exception:
+                    pass
+
+        # Last resort: Wrap it in GeneralSAD which is very lenient
+        label = 'd'
+        if sad and '$id' in sad:
+            label = '$id'
+        return GeneralSAD(sad=sad, label=label)
 
     @property
     def size(self) -> int:
@@ -162,19 +198,12 @@ class SAD(Serializable):
     @property
     def data(self) -> SADDict:
         """The internal dictionary representation (SAD) of the object."""
-        if self._sad:
-            if hasattr(self._sad, 'sad'):
-                return self._sad.sad
-            elif hasattr(self._sad, 'sed'): # Schemer uses sed
-                return self._sad.sed
-        return self._manual_data
+        return self._sad.sad
 
     @property
     def said(self) -> SAID:
         """The Self-Addressing Identifier (SAID) of the object."""
-        if self._sad:
-            return SAID(self._sad.said)
-        return SAID(self._manual_said)
+        return SAID(self._sad.said)
 
     @property
     def qb64(self) -> str:
@@ -184,9 +213,7 @@ class SAD(Serializable):
     @property
     def raw(self) -> bytes:
         """The raw bytes serialization of the object."""
-        if self._sad:
-            return self._sad.raw
-        return self._manual_raw
+        return self._sad.raw
 
     @property
     def version(self) -> Optional[str]:
@@ -207,6 +234,31 @@ class SAD(Serializable):
         """The object represented as a JSON string (no indentation)."""
         return self.to_json()
 
+    def sign(self, identity: 'Identity') -> 'Signature':
+        """
+        Sign the object using the provided Identity.
+        
+        Args:
+            identity: The Identity to sign with.
+            
+        Returns:
+            Signature: The resulting cryptographic signature.
+        """
+        return identity.sign(self.raw)
+
+    def verify_signature(self, signature: 'Signature', public_key: 'PublicKey') -> bool:
+        """
+        Verify a signature over this object.
+        
+        Args:
+            signature: The signature to verify.
+            public_key: The Public Key to verify against.
+            
+        Returns:
+            bool: True if signature is valid.
+        """
+        return public_key.verify(self.raw, signature)
+
     def verify(self) -> bool:
         """
         Verify that the object's SAID matches its data.
@@ -215,44 +267,16 @@ class SAD(Serializable):
             bool: True if verified, False otherwise.
         """
         try:
-            from keri.core import coring
             # Determine label
             label = 'd'
             if '$id' in self.data:
                 label = '$id'
-            
-            saider = coring.Saider(qb64=str(self.said), label=label)
+                
             # Verification against dict is generally safer for flexible SADs
-            return saider.verify(sad=self.data, label=label)
+            saider = coring.Saider(qb64=str(self.said), label=label)
+            return saider.verify(sad=self.data, label=label, versioned=('v' in self.data))
         except Exception:
             return False
-    
-    def sign(self, identity: 'Identity') -> 'Signature':
-        """
-        Sign this SAD with an Identity's key.
-        
-        Args:
-            identity: The Identity to sign with.
-            
-        Returns:
-            Signature: The cryptographic signature over this SAD's serialization.
-        """
-        from .crypto import Signature
-        return identity.sign(self.raw)
-    
-    def verify_signature(self, signature: 'Signature', public_key: 'PublicKey') -> bool:
-        """
-        Verify a signature over this SAD.
-        
-        Args:
-            signature: The signature to verify.
-            public_key: The public key to verify against.
-            
-        Returns:
-            bool: True if signature is valid, False otherwise.
-        """
-        from .crypto import PublicKey
-        return public_key.verify(self.raw, signature)
 
     def __repr__(self):
         return f"{self.__class__.__name__}(said='{self.said}')"

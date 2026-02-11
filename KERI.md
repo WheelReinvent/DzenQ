@@ -1,3 +1,4 @@
+
 # KERI Implementation Guide
 
 This document maps the implementation details of the `keri` Python library to the academic concepts defined in the KERI (Key Event Receipt Infrastructure) whitepapers.

@@ -2,7 +2,7 @@ from typing import Union, Optional
 from keri.vc import proving
 
 from .identity import Identity
-from .base import *
+from .base import SAD, AID, SAID, Fields
 from .types import ACDCDict
 from .schema import Schema, registry
 
@@ -15,7 +15,7 @@ class ACDC(SAD):
     """
 
     def __init__(self, 
-                 sad_or_raw: Optional[Union[dict, bytes, str, SAD]] = None,
+                 sad_or_raw: Optional[Union[ACDCDict, bytes, str, SAD]] = None,
                  *,
                  issuer: Optional[Identity] = None, 
                  schema: Optional[Union[str, Schema]] = None, 
@@ -99,7 +99,7 @@ class ACDC(SAD):
             # (In a real system, we'd fetch it by SAID first)
             return False
             
-        return schema_inst.verify_dict(self.attributes)
+        return schema_inst.validate(self.attributes)
 
     @property
     def attributes(self) -> dict:

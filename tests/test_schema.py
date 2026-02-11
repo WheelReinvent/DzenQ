@@ -1,7 +1,9 @@
-import pytest
 import json
-from keriac import Schema, registry, ACDC, Identity, Schemas, SAID
-
+from typing import Dict
+import pytest
+from keriac import ACDC, Identity, Schema, registry
+from keriac.base import SAID
+from keriac.const import Schemas
 @pytest.fixture
 def alice():
     ident = Identity(name="alice")
@@ -26,11 +28,11 @@ def test_schema_basic():
     assert schema.said.startswith("E")
     
     # Valid data
-    assert schema.verify_dict({"name": "Alice", "age": 30}) is True
+    assert schema.validate({"name": "Alice", "age": 30}) is True
     # Invalid data (missing required)
-    assert schema.verify_dict({"age": 30}) is False
+    assert schema.validate({"age": 30}) is False
     # Invalid data (wrong type)
-    assert schema.verify_dict({"name": "Alice", "age": "thirty"}) is False
+    assert schema.validate({"name": "Alice", "age": "thirty"}) is False
 
 def test_registry_lookup():
     """Test vLEI alias lookup in registry."""
@@ -104,23 +106,41 @@ def test_vlei_alias_creation(alice):
     
     assert cred.schema == Schemas.QVI
 
-def test_schema_as_sad():
-    """Test that Schema inherits SAD functionality."""
+def test_schema_properties():
+    """Test that Schema implements Serializable properties."""
     raw_schema = {
         "$id": "",
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "title": "SAD Schema",
-        "type": "object"
+        "$schema": "http://json-schema.org/draft-2020-12/schema",
+        "title": "Standalone Schema",
+        "type": "object",
+        "properties": {
+            "name": {"type": "string"},
+            "age": {"type": "integer"}
+        },
+        "required": ["name"]
     }
     schema = Schema(raw_schema)
     
-    # SAD properties
+    # Serializable/SAD-like properties
     assert schema.said is not None
     assert schema.json is not None
     assert schema.qb64 is not None
     assert isinstance(schema.said, SAID)
     
+    # Define test data for validation
+    valid_data = {"name": "Alice", "age": 30}
+    invalid_data = {"age": 30} # Missing required 'name'
+
     # Verify method
+    assert schema.validate(json.dumps(valid_data).encode("utf-8")) is True
+    assert schema.validate(json.dumps(invalid_data).encode("utf-8")) is False
+    
+    # Test verify_dict convenience method
+    assert schema.validate(valid_data) is True
+    assert schema.validate(invalid_data) is False
+
+    # Test self-verification (inherited from SAD)
+    # This checks if the schema's SAID matches its own content
     assert schema.verify() is True
     # verify_schema will be False because the Registry only has stubs (empty schemas)
     # for these well-known SAIDs unless we populate them with real JSON content.

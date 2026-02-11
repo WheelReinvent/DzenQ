@@ -1,30 +1,5 @@
 from typing import Type, TypeVar, Union, Iterable, List
-
-class Serializable:
-    """
-    Base class for objects that can be serialized/deserialized to/from CESR.
-    """
-
-    @property
-    def size(self) -> int:
-        """
-        Return the size of the serialized object in bytes.
-        Essential for stream-based unpacking.
-        """
-        raise NotImplementedError
-
-    def serialize(self) -> bytes:
-        """
-        Serialize the object to CESR bytes (usually qb2).
-        """
-        raise NotImplementedError
-
-    @classmethod
-    def deserialize(cls, raw: bytes) -> "Serializable":
-        """
-        Create an object instance from the provided CESR bytes.
-        """
-        raise NotImplementedError
+from .base import Serializable
 
 T = TypeVar("T", bound=Serializable)
 
@@ -74,7 +49,7 @@ def unpack(raw: bytes, cls: Type[T] = None) -> List[Union[T, Serializable]]:
             results.append(obj)
             del ims[:obj.size]
             continue
-
+        
         if cold == Colds.msg:
             # Polymorphic message reaping using KERI's Serdery
             serder = serdery.reap(ims)

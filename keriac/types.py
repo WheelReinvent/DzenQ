@@ -1,13 +1,24 @@
 from typing_extensions import TypedDict, Optional, List, Dict, Any
 
-class SADDict(TypedDict, total=False):
-    """
-    Base TypedDict for Self-Addressing Data (SAD).
-    Using total=False to allow for optional fields in the base.
-    """
-    v: str  # Version
-    t: str  # Type (Ilk)
-    d: str  # SAID (Digest)
+SADDict = TypedDict('SADDict', {
+    'v': str,   # Version
+    't': str,   # Type (Ilk)
+    'd': str,   # SAID (Digest)
+    '$id': str  # Schema SAID
+}, total=False)
+
+SchemaDict = TypedDict('SchemaDict', {
+    'v': str,   # Version
+    't': str,   # Type (Ilk)
+    'd': str,   # SAID (Digest)
+    '$id': str, # Schema SAID
+    '$schema': str,
+    'title': str,
+    'description': str,
+    'type': str,
+    'properties': Dict[str, Any],
+    'required': List[str],
+}, total=False)
 
 class EventDict(SADDict):
     """
