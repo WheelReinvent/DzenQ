@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from keri.core.signing import Signer as KeriSigner, Siger as KeriSiger
 from keri.core.coring import Verfer as KeriVerfer
 
-from .serialize import Serializable
+from .base import Serializable
 
 if TYPE_CHECKING:
     pass

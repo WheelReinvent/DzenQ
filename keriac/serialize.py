@@ -1,6 +1,16 @@
 from typing import Type, TypeVar, Union, Iterable, List
 from .base import Serializable
 
+from keri.kering import sniff, Colds, Protocols
+from keri.core.serdering import Serdery
+from .base import SAID, SAD
+from .event import Event
+from .acdc import ACDC
+from .crypto import PublicKey, Signature
+from keri.help.helping import nabSextets, codeB2ToB64
+from keri.core.coring import Matter, DigDex, PreDex, NonTransDex
+from keri.core.indexing import Indexer, IdxSigDex
+
 T = TypeVar("T", bound=Serializable)
 
 def pack(objs: Union[Serializable, Iterable[Serializable]]) -> bytes:
@@ -29,12 +39,6 @@ def unpack(raw: bytes, cls: Type[T] = None) -> List[Union[T, Serializable]]:
     Returns:
         List: A list of unpacked object instances.
     """
-    from keri.kering import sniff, Colds, Protocols
-    from keri.core.serdering import Serdery
-    from .base import SAID, SAD
-    from .event import Event
-    from .acdc import ACDC
-    from .crypto import PublicKey, Signature
 
     results = []
     ims = bytearray(raw)  # Serdery.reap and Matter classes use stripping on bytearrays
@@ -60,23 +64,57 @@ def unpack(raw: bytes, cls: Type[T] = None) -> List[Union[T, Serializable]]:
             else:
                 results.append(SAD(serder))
         else:
-            # Binary material - try to detect the type
-            # Check if it's a PublicKey (Verfer) or Signature (Siger)
-            try:
-                # Try PublicKey first
-                obj = PublicKey.deserialize(bytes(ims))
+
+            # Extract first sextet to find hard size
+            first = nabSextets(ims, 1)
+            
+            # Use derivation codes to dispatch to the correct wrapper class.
+            # Some codes overlap (e.g., 'E' is both Blake3 digest and ECDSA signature).
+            # We resolve this by trying the most likely types first.
+            
+            obj = None
+            
+            # Check Matter-based objects (SAID, PublicKey)
+            if first in Matter.Bards:
+                hs = Matter.Bards[first]
+                code = codeB2ToB64(ims, hs)
+                
+                # 1. Try SAID for digest codes ('E', 'F', etc.)
+                if code in DigDex:
+                    try:
+                        obj = SAID.deserialize(bytes(ims))
+                    except Exception:
+                        pass
+                
+                # 2. Try PublicKey for prefix codes ('B', 'D', '1AAA', etc.)
+                if not obj and (code in PreDex or code in NonTransDex):
+                    try:
+                        obj = PublicKey.deserialize(bytes(ims))
+                    except Exception:
+                        pass
+
+            # Check Indexer-based objects (Signature)
+            if not obj and first in Indexer.Bards:
+                hs = Indexer.Bards[first]
+                code = codeB2ToB64(ims, hs)
+                
+                if code in IdxSigDex:
+                    try:
+                        obj = Signature.deserialize(bytes(ims))
+                    except Exception:
+                        pass
+                        
+            if obj:
                 results.append(obj)
                 del ims[:obj.size]
-            except Exception:
+            else:
+                # Final fallback for truly unknown material
                 try:
-                    # Try Signature
-                    obj = Signature.deserialize(bytes(ims))
-                    results.append(obj)
-                    del ims[:obj.size]
-                except Exception:
-                    # Fall back to SAID
                     obj = SAID.deserialize(bytes(ims))
                     results.append(obj)
                     del ims[:obj.size]
+                except Exception:
+                    # If we still fail, break to prevent infinite loop
+                    break
             
     return results
