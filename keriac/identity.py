@@ -3,6 +3,7 @@ from keri.app import habbing
 from .base import AID
 from .event import Event
 from .event_log import KEL
+from .crypto import PublicKey, PrivateKey, Signature
 
 
 class Identity:
@@ -71,6 +72,34 @@ class Identity:
     def kel(self) -> KEL:
         """Access the Key Event Log (KEL) for this identity."""
         return KEL(self._hab)
+    
+    def sign(self, data: bytes) -> Signature:
+        """
+        Sign arbitrary data with this identity's current signing key.
+        
+        Args:
+            data: The bytes to sign.
+            
+        Returns:
+            Signature: The cryptographic signature.
+        """
+        from .crypto import Signature
+        # Use Hab's sign method which returns a list of Sigers
+        sigers = self._hab.sign(ser=data)
+        # Return the first signature
+        return Signature(sigers[0].qb64)
+    
+    @property
+    def public_key(self) -> PublicKey:
+        """
+        Get the current public key for this identity.
+        
+        Returns:
+            PublicKey: The current verification key.
+        """
+        # Get the current public key from the KEL
+        keri_verfer = self._hab.kever.verfers[0]
+        return PublicKey(keri_verfer.qb64)
 
     def close(self):
         """Close the underlying database and resources."""

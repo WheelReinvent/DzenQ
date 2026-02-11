@@ -207,6 +207,33 @@ class SAD(Serializable):
             return saider.verify(sad=self.data)
         except Exception:
             return False
+    
+    def sign(self, identity: 'Identity') -> 'Signature':
+        """
+        Sign this SAD with an Identity's key.
+        
+        Args:
+            identity: The Identity to sign with.
+            
+        Returns:
+            Signature: The cryptographic signature over this SAD's serialization.
+        """
+        from .crypto import Signature
+        return identity.sign(self.raw)
+    
+    def verify_signature(self, signature: 'Signature', public_key: 'PublicKey') -> bool:
+        """
+        Verify a signature over this SAD.
+        
+        Args:
+            signature: The signature to verify.
+            public_key: The public key to verify against.
+            
+        Returns:
+            bool: True if signature is valid, False otherwise.
+        """
+        from .crypto import PublicKey
+        return public_key.verify(self.raw, signature)
 
     def __repr__(self):
         return f"{self.__class__.__name__}(said='{self.said}')"

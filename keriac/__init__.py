@@ -4,6 +4,7 @@ from .event import Event, InceptionEvent, RotationEvent, InteractionEvent
 from .identity import Identity
 from .event_log import KEL
 from .serialize import Serializable, pack, unpack
+from .crypto import PublicKey, Signature, PrivateKey
 
 __all__ = [
     "ACDC",
@@ -19,4 +20,7 @@ __all__ = [
     "Serializable",
     "pack",
     "unpack",
+    "PublicKey",
+    "Signature",
+    "PrivateKey",
 ]

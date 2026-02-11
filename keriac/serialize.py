@@ -59,6 +59,7 @@ def unpack(raw: bytes, cls: Type[T] = None) -> List[Union[T, Serializable]]:
     from .base import SAID, SAD
     from .event import Event
     from .acdc import ACDC
+    from .crypto import PublicKey, Signature
 
     results = []
     ims = bytearray(raw)  # Serdery.reap and Matter classes use stripping on bytearrays
@@ -84,9 +85,23 @@ def unpack(raw: bytes, cls: Type[T] = None) -> List[Union[T, Serializable]]:
             else:
                 results.append(SAD(serder))
         else:
-            # Assume binary material (defaulting to SAID for keriac)
-            obj = SAID.deserialize(bytes(ims))
-            results.append(obj)
-            del ims[:obj.size]
+            # Binary material - try to detect the type
+            # Check if it's a PublicKey (Verfer) or Signature (Siger)
+            try:
+                # Try PublicKey first
+                obj = PublicKey.deserialize(bytes(ims))
+                results.append(obj)
+                del ims[:obj.size]
+            except Exception:
+                try:
+                    # Try Signature
+                    obj = Signature.deserialize(bytes(ims))
+                    results.append(obj)
+                    del ims[:obj.size]
+                except Exception:
+                    # Fall back to SAID
+                    obj = SAID.deserialize(bytes(ims))
+                    results.append(obj)
+                    del ims[:obj.size]
             
     return results
