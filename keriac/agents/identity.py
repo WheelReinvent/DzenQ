@@ -1,15 +1,11 @@
-from typing import Union, List, Any, TYPE_CHECKING
+from typing import Union, List, Any
 from keri.app import habbing
 
+from keriac.domain import AID, PublicKey, Signature
 from keriac.logbook.entries.event import Event
-from .domain import AID, PublicKey, Signature
-from .logbook.keys import KeyLog
-
-if TYPE_CHECKING:
-    from .logbook.transactions import TransactionLog
-    from .documents.credential import ACDC
-    from .documents.presentation import Presentation
-
+from keriac.logbook.keys import KeyLog
+from keriac.logbook.transactions import TransactionLog
+from keriac.documents.credential import Credential
 
 class Identity:
     """
@@ -71,7 +67,7 @@ class Identity:
         Raises:
             ValueError: If this is a Remote Identity (no keys).
         """
-        from .documents.contact import Card
+        from keriac.agents.contact import Card
         return Card.issue(self, role=role)
 
 
@@ -292,16 +288,19 @@ class Identity:
         Returns:
             TransactionLog: The newly created and committed transaction log.
         """
-        from .logbook.transactions import TransactionLog
-        log = TransactionLog(issuer=self, name=name)
-        log.commit()
-        return log
-    
-    def create_registry(self, name: str) -> 'TransactionLog':
-        """Alias for create_transaction_log."""
-        return self.create_transaction_log(name)
+        log = TransactionLog(issuer_aid=self.aid, name=name)
 
-    def issue_credential(self, data: dict, transaction_log: 'TransactionLog', schema: Any = None, recipient: Any = None, **kwargs) -> 'ACDC':
+        seal = log.commit()
+
+        # Anchor in Issuer's KEL
+        # We seal the registry inception to authorize it
+        # Using a SealEvent format: i=reg_k, s=sn, d=digest
+
+        self.anchor(data=seal)
+        return log
+
+
+    def issue_credential(self, data: dict, transaction_log: TransactionLog, schema: Any = None, recipient: Any = None, **kwargs) -> 'Credential':
         """
         Issue a credential using the provided transaction log.
 
@@ -318,44 +317,55 @@ class Identity:
             **kwargs: Additional arguments for ACDC creation.
 
         Returns:
-            ACDC: The issued and anchored credential.
+            Credential: The issued and anchored credential.
         """
-        from .documents.credential import ACDC
-
         # 1. Create the ACDC
         # We pass the log AID as the 'status' field in the credential
-        acdc = ACDC.create(
-            issuer=self,
+        acdc = Credential.create(
+            issuer_aid=self.aid,
             schema=schema,
             attributes=data,
             recipient=str(recipient) if recipient else None,
-            status=str(transaction_log.reg_k),
+            status=str(transaction_log.log_aid),
             **kwargs
         )
 
         # 2. Issue against the transaction log (creates and anchors 'iss' event)
-        transaction_log.issue(credential=acdc)
+        seal = transaction_log.issue(credential=acdc)
 
-        # 3. Attach log reference for convenience (acdc.revoke())
-        acdc.transaction_log = transaction_log
+        # 2. Anchor in Issuer's KEL
+        # Seal the issuance
+        self.anchor(data=seal)
+
 
         return acdc
 
-    def verify_presentation(self, presentation: 'Presentation') -> bool:
+    def revoke_credential(self, credential: 'Credential', transaction_log: TransactionLog) -> 'Credential':
         """
-        Verify a credential presentation.
-        
-        Checks:
-        1. Credential cryptographic integrity (SAID/Signature).
-        2. Revocation status (against TransactionLog).
-        
+        Revoke a credential using its associated transaction log.
+
+        This process:
+        1. Generates a revocation event (rev) in the credential's transaction log.
+        2. Anchors the revocation in this identity's KEL.
+
         Args:
-            presentation (Presentation): The presentation to verify.
-            
+            credential (Credential): The credential to revoke (must have transaction_log).
+
         Returns:
-            bool: True if valid.
+            Credential: The revoked credential (with updated status).
+            :param credential:
+            :param transaction_log:
         """
-        return presentation.verify()
+        # 1. Revoke in the transaction log (creates and anchors 'rev' event)
+        seal = transaction_log.revoke(credential=credential)
+
+        # 2. Anchor in Issuer's KEL
+        self.anchor(data=seal)
+
+        # 3. Update credential status for convenience
+        credential.status = "revoked"
+
+        return credential
 
     def close(self):
         """Close the underlying database and resources."""

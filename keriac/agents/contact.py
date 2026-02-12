@@ -3,12 +3,15 @@ Discovery module for OOBI (Out-of-Band Introduction) support.
 
 Provides the Card abstraction for discovering and resolving remote Identities.
 """
-from typing import TYPE_CHECKING, Optional
+from typing import Optional, Self
 import requests
 from keri.core import eventing
+from keri.app import habbing
+from keri.core import serdering
+from keri.core.counting import Counter
+from keri.core.indexing import Siger
 
-if TYPE_CHECKING:
-    from ..identity import Identity
+from .identity import Identity
 
 class Card:
     """
@@ -27,7 +30,7 @@ class Card:
         """
         self.url = url
     
-    def resolve(self, name: Optional[str] = None, temp: bool = True) -> 'Identity':
+    def resolve(self, name: Optional[str] = None, temp: bool = True) -> Identity:
         """
         Resolve this Card to obtain a Remote Identity.
         
@@ -46,11 +49,6 @@ class Card:
         Raises:
             ValueError: If the OOBI URL is invalid or KEL cannot be fetched.
         """
-        from ..identity import Identity
-        from keri.app import habbing
-        from keri.core import serdering
-        from keri.core.counting import Counter
-        from keri.core.indexing import Siger
         
         # 1. Fetch KEL from URL
         try:
@@ -115,7 +113,7 @@ class Card:
         return identity
     
     @staticmethod
-    def issue(identity: 'Identity', role: str = "controller") -> 'Card':
+    def issue(identity: Identity, role: str = "controller") -> Self:
         """
         Generate a Card for the given Identity.
         

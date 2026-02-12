@@ -1,8 +1,7 @@
-import pytest
 import json
-from typing import List
-from keriac import Identity
-from keriac.logbook.transactions import TransactionLog
+from keriac.agents import Identity
+from keriac.documents import Presentation
+
 
 def test_issuance_with_recipient():
     """
@@ -48,7 +47,7 @@ def test_presentation_flow():
     )
     
     # 1. Full Presentation
-    pres_full = credential.present()
+    pres_full = Presentation(credential=credential, transaction_log=log)
     # print(f"DEBUG: Full attributes keys: {list(pres_full.attributes.keys())}")
     # assert pres_full.disclosed_fields == list(data.keys()) 
     # The above assertion assumes ONLY data keys, but ACDC adds metadata fields (d, dt, i, s, a).
@@ -57,7 +56,7 @@ def test_presentation_flow():
         assert k in pres_full.attributes
     
     # 2. Selective Disclosure
-    pres_partial = credential.present(disclose_fields=["name", "date"])
+    pres_partial = Presentation(credential, transaction_log=log, disclose_fields=["name", "date"])
     print(f"DEBUG: Partial attributes: {pres_partial.attributes}")
     assert "name" in pres_partial.attributes
     assert "date" in pres_partial.attributes
@@ -88,16 +87,16 @@ def test_verification_flow():
     )
     
     # Case 1: Valid Verification
-    presentation = credential.present()
-    assert issuer.verify_presentation(presentation) is True
+    presentation = Presentation(credential, transaction_log=log)
+    assert presentation.verify() is True
     
     # Case 2: Verification Failure (Revoked)
     # Revoke credentials
-    credential.revoke()
+    issuer.revoke_credential(credential, log)
     # Now verify should fail
     # Note: ACDC.is_revoked() checks registry.
     # presentation.verify() checks credential.is_revoked()
-    assert credential.is_revoked() is True # Mock check? No, logic depends on if we implemented status query
+    assert log.status(credential) == "Revoked" # Mock check? No, logic depends on if we implemented status query
     
     # Let's see if presentation verification catches revocation
     # We must ensure credential.is_revoked() returns True.
@@ -117,6 +116,6 @@ def test_verification_flow():
     # OR we mock it.
     
     # For now, let's assert True for valid check.
-    assert issuer.verify_presentation(presentation) is False
+    assert presentation.verify() is False
     
     issuer.close()

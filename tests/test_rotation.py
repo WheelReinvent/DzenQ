@@ -2,7 +2,8 @@
 Test key rotation functionality.
 """
 import pytest
-from keriac import Identity, Event
+from keriac.agents import Identity
+from keriac.logbook.entries import Event
 from keriac.logbook.entries.event import RotationEvent
 from keriac.domain import DigestSeal
 

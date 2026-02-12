@@ -1,11 +1,7 @@
-from typing import TYPE_CHECKING, Dict, Any
-
 from keri.vdr import eventing
-from ..domain import Serializable, SAID
 
-if TYPE_CHECKING:
-    from ..identity import Identity
-    from ..documents.credential import ACDC
+from .. import AID, Seal
+from ..documents.credential import Credential
 
 class TransactionLog:
     """
@@ -20,7 +16,7 @@ class TransactionLog:
     This class abstracts the complex KERI VDR logic into a simple API.
     """
 
-    def __init__(self, issuer: 'Identity', name: str):
+    def __init__(self, issuer_aid: AID, name: str):
         """
         Initialize a TransactionLog wrapper.
 
@@ -28,12 +24,12 @@ class TransactionLog:
             issuer (Identity): The Identity that controls this registry.
             name (str): Human-readable alias for this registry.
         """
-        self._issuer = issuer
+        self.issuer_aid = issuer_aid
         self.name = name
-        self.reg_k = None # Assigned after commit()
+        self.log_aid = None # Assigned after commit()
         self._revoked_credentials = set() # In-memory mock DB
 
-    def commit(self) -> str:
+    def commit(self) -> Seal:
         """
         Create the Registry Inception Event (vcp) and anchor it.
         
@@ -45,68 +41,60 @@ class TransactionLog:
         # 1. Generate vcp event
         # 'pre' is the issuer's identifier prefix
         # We assume a default configuration for now (no backers logic exposed yet)
-        serder = eventing.incept(pre=self._issuer.aid)
+        serder = eventing.incept(pre=self.issuer_aid)
         
-        self.reg_k = serder.pre
+        self.log_aid = serder.pre
 
-        # 2. Anchor in Issuer's KEL
-        # We seal the registry inception to authorize it
-        # Using a SealEvent format: i=reg_k, s=sn, d=digest
-        seal = {
-            "i": self.reg_k,
-            "s": "{:x}".format(0), # Inception is always sn 0
+        return {
+            "i": self.log_aid,
+            "s": "{:x}".format(0),  # Inception is always sn 0
             "d": serder.said
         }
-        self._issuer.anchor(data=seal)
-        
-        return self.reg_k
 
-    def issue(self, credential: 'ACDC') -> str:
+
+    def issue(self, credential: Credential) -> Seal:
         """
         Issue a credential against this registry.
         
         Generates an Issuance (iss) event and anchors it.
 
         Args:
-            credential (ACDC): The credential to issue.
+            credential (Credential): The credential to issue.
 
         Returns:
             str: The said of the issuance event.
         """
-        if not self.reg_k:
+        if not self.log_aid:
             raise ValueError("Registry not committed. Call commit() first.")
 
         # 1. Generate iss event
         # vcdig is the SAID of the credential
         serder = eventing.issue(
             vcdig=str(credential.said),
-            regk=self.reg_k
+            regk=self.log_aid
         )
 
-        # 2. Anchor in Issuer's KEL
-        # Seal the issuance
-        seal = {
-            "i": self.reg_k,
-            "s": serder.sn, # hex string
+        return {
+            "i": self.log_aid,
+            "s": serder.sn,  # hex string
             "d": serder.said
         }
-        self._issuer.anchor(data=seal)
-        
-        return serder.said
 
-    def revoke(self, credential: 'ACDC') -> str:
+
+    # TODO disallow direct call. Only via Identity.revoke_credential() to ensure proper checks and flow
+    def revoke(self, credential: Credential) -> Seal:
         """
         Revoke a credential.
         
         Generates a Revocation (rev) event and anchors it.
         
         Args:
-            credential (ACDC): The credential to revoke.
+            credential (Credential): The credential to revoke.
             
         Returns:
             str: The said of the revocation event.
         """
-        if not self.reg_k:
+        if not self.log_aid:
             raise ValueError("Registry not committed. Call commit() first.")
 
         # For revocation, we need the *previous* event digest in the TEL usually.
@@ -123,30 +111,28 @@ class TransactionLog:
         # ideally we would query the database.
         
         # Re-derive issue event to get its digest
-        iss_serder = eventing.issue(vcdig=str(credential.said), regk=self.reg_k)
+        iss_serder = eventing.issue(vcdig=str(credential.said), regk=self.log_aid)
         prev_dig = iss_serder.said
 
         # 1. Generate rev event
         serder = eventing.revoke(
             vcdig=str(credential.said),
-            regk=self.reg_k,
+            regk=self.log_aid,
             dig=prev_dig
         )
 
-        # 2. Anchor in Issuer's KEL
-        seal = {
-            "i": self.reg_k,
+        # Mark as revoked in memory
+        self._revoked_credentials.add(str(credential.said))
+
+        credential.status = "revoked"
+        
+        return {
+            "i": self.log_aid,
             "s": serder.sn,
             "d": serder.said
         }
-        self._issuer.anchor(data=seal)
-        
-        # Mark as revoked in memory
-        self._revoked_credentials.add(str(credential.said))
-        
-        return serder.said
 
-    def status(self, credential: 'ACDC') -> str:
+    def status(self, credential: Credential) -> str:
         """
         Check the status of a credential.
         

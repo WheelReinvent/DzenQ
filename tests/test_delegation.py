@@ -1,4 +1,5 @@
-from keriac import Identity, unpack
+from keriac.agents import Identity
+from keriac.transport import unpack
 from keriac.logbook.entries.event import DelegatedInceptionEvent, InteractionEvent, InceptionEvent
 
 def test_successful_delegation():

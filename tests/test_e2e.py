@@ -26,8 +26,8 @@ Concepts demonstrated:
 import pytest
 import requests_mock
 
-from keriac import Identity, ACDC, KeyLog
-from keriac.documents.contact import Card
+from keriac.agents import Identity
+from keriac.documents import Credential, Presentation
 from keriac.logbook.transactions import TransactionLog
 
 
@@ -36,8 +36,6 @@ def _export_kel_messages(identity):
     Export the full messagized KEL (all events + attached signatures).
     Simulates what an OOBI endpoint would serve over HTTP.
     """
-    from keri.core import eventing as keri_eventing
-    from keri.core.indexing import Siger
     from keri.core.counting import Counter, Codens
     from keri.db.dbing import dgKey, snKey
 
@@ -115,7 +113,7 @@ class TestAliceSendsThankYouToBob:
 
         # The log has been anchored in Alice's KEL
         assert isinstance(log, TransactionLog)
-        assert log.reg_k is not None
+        assert log.log_aid is not None
 
         alice_kel = list(alice.kel)
         assert len(alice_kel) == 2  # icp + ixn (registry anchor)
@@ -123,7 +121,7 @@ class TestAliceSendsThankYouToBob:
 
         # The anchor seal references the log
         anchor = alice_kel[-1].anchors[0]
-        assert anchor["i"] == log.reg_k
+        assert anchor["i"] == log.log_aid
 
         # ================================================================
         # ACT 3: Credential Issuance — The ThankYou Certificate
@@ -151,10 +149,10 @@ class TestAliceSendsThankYouToBob:
         )
 
         # The credential is a proper ACDC
-        assert isinstance(credential, ACDC)
+        assert isinstance(credential, Credential)
         assert credential.issuer == alice.aid
         assert credential.recipient == bob.aid
-        assert credential.is_revoked() is False
+        assert log.status(credential) != "Revoked"
 
         # Verify the attributes are embedded
         attrs = credential.attributes
@@ -252,16 +250,14 @@ class TestAliceSendsThankYouToBob:
         #
 
         # Full presentation (all fields visible)
-        full_presentation = credential.present()
+        full_presentation = Presentation(credential, transaction_log=log)
         assert "message" in full_presentation.attributes
         assert "project" in full_presentation.attributes
         assert "category" in full_presentation.attributes
         assert "date" in full_presentation.attributes
 
         # Selective disclosure — hide the project
-        selective_presentation = credential.present(
-            disclose_fields=["message", "category"]
-        )
+        selective_presentation = Presentation(credential, transaction_log=log, disclose_fields=["message", "category"])
         assert "message" in selective_presentation.attributes
         assert "category" in selective_presentation.attributes
         assert "project" not in selective_presentation.attributes
@@ -283,7 +279,7 @@ class TestAliceSendsThankYouToBob:
         #
 
         # Full presentation verification passes
-        assert alice.verify_presentation(full_presentation) is True
+        assert full_presentation.verify() is True
 
         # ================================================================
         # ACT 9: Revocation — Alice Withdraws the Certificate
@@ -293,10 +289,10 @@ class TestAliceSendsThankYouToBob:
         # The revocation is anchored in her KEL and tracked in the TEL.
         #
 
-        credential.revoke()
+        alice.revoke_credential(credential, transaction_log=log)
 
         # The credential is now revoked
-        assert credential.is_revoked() is True
+        assert log.status(credential) == "Revoked"
 
         # Revocation is anchored in Alice's KEL
         alice_kel = list(alice.kel)
@@ -304,7 +300,7 @@ class TestAliceSendsThankYouToBob:
         assert alice_kel[-1].event_type == "ixn"
 
         # Verification now fails due to revocation
-        assert alice.verify_presentation(full_presentation) is False
+        assert full_presentation.verify() is False
 
         # ================================================================
         # EPILOGUE: Cleanup

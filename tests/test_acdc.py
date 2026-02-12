@@ -1,5 +1,6 @@
 import pytest
-from keriac import Identity, ACDC
+from keriac.agents import Identity
+from keriac.documents import Credential
 
 @pytest.fixture
 def alice():
@@ -18,8 +19,8 @@ def test_acdc_creation(alice):
     }
     
     # Create ACDC directly
-    cred = ACDC.create(
-        issuer=alice,
+    cred = Credential.create(
+        issuer_aid=alice.aid,
         schema=schema_said,
         attributes=attributes
     )
@@ -43,8 +44,8 @@ def test_acdc_with_recipient(alice):
         "dt": "2023-10-27T12:00:00Z"
     }
     
-    cred = ACDC.create(
-        issuer=alice,
+    cred = Credential.create(
+        issuer_aid=alice.aid,
         schema=schema_said,
         attributes=attributes,
         recipient=recipient_aid
@@ -58,26 +59,26 @@ def test_acdc_wrapping_style(alice):
     attributes = {"name": "John Doe"}
     
     # First create one to get valid SAD data
-    orig = ACDC.create(issuer=alice, schema=schema, attributes=attributes)
+    orig = Credential.create(issuer_aid=alice.aid, schema=schema, attributes=attributes)
     sad_data = orig.data
     orig_said = orig.said
     
     # Wrapping Style
-    wrapped = ACDC(sad_data)
+    wrapped = Credential(sad_data)
     
-    assert isinstance(wrapped, ACDC)
+    assert isinstance(wrapped, Credential)
     assert str(wrapped.said) == str(orig_said)
     assert wrapped.data == sad_data
 
 def test_acdc_wrapping_sad_instance(alice):
     """Verify wrapping a SAD instance into ACDC."""
     schema = "EBm9vXQ9y9A9p9v9v9v9v9v9v9v9v9v9v9v9v9v9v9v"
-    orig = ACDC.create(issuer=alice, schema=schema, attributes={"n": 1})
+    orig = Credential.create(issuer_aid=alice.aid, schema=schema, attributes={"n": 1})
     
     # Wrapping another SAD instance
-    new_acdc = ACDC(orig)
+    new_acdc = Credential(orig)
     
-    assert isinstance(new_acdc, ACDC)
+    assert isinstance(new_acdc, Credential)
     assert new_acdc.said == orig.said
     assert new_acdc.raw == orig.raw
 
@@ -86,7 +87,7 @@ def test_acdc_json_representation(alice):
     schema_said = "EM9M_xyz_dummy_schema_said_1234567890" 
     attributes = {"name": "Alice"}
     
-    cred = ACDC.create(issuer=alice, schema=schema_said, attributes=attributes)
+    cred = Credential.create(issuer_aid=alice.aid, schema=schema_said, attributes=attributes)
     
     # Test .json property
     json_str = cred.json

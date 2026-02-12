@@ -1,5 +1,8 @@
 from typing import Iterator
+
+from keriac.domain import SAID
 from keriac.logbook.entries.event import Event, InteractionEvent
+
 class KeyLog:
     """
     KeyLog (Key Event Log) provides an iterable interface to an identity's event history.
@@ -20,7 +23,7 @@ class KeyLog:
         # The sequence number is 0-indexed, so we add 1 to the highest SN.
         return self._hab.kever.sn + 1
 
-    def is_anchored(self, said: str) -> bool:
+    def is_anchored(self, said: SAID) -> bool:
         """
         Check if the given SAID is anchored in this KEL.
         """

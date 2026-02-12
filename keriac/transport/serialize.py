@@ -4,12 +4,13 @@ from keri import kering
 from keri.kering import sniff, Colds, Protocols
 from keri.core.serdering import Serdery
 from keriac.logbook.entries.event import Event
-from .documents.credential import ACDC
 from keri.help.helping import nabSextets, codeB2ToB64
 from keri.core.coring import Matter, DigDex, PreDex, NonTransDex
 from keri.core.indexing import Indexer, IdxSigDex
 
-from .domain import Serializable, DataRecord, SAID, Signature, PublicKey
+from keriac.domain import Serializable, DataRecord, SAID, Signature, PublicKey
+from keriac.documents.credential import Credential
+
 
 T = TypeVar("T", bound=Serializable)
 
@@ -64,7 +65,7 @@ def unpack(raw: bytes, cls: Type[T] = None) -> List[Union[T, Serializable]]:
                 if serder.proto == Protocols.keri:
                     results.append(Event(serder))
                 elif serder.proto == Protocols.acdc:
-                    results.append(ACDC(serder))
+                    results.append(Credential(serder))
                 else:
                     results.append(DataRecord(serder))
                 reaped = True

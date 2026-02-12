@@ -1,7 +1,7 @@
 import pytest
 import requests_mock
-from keriac import Identity
-from keriac.documents.contact import Card
+from keriac.agents import Identity
+from keriac.agents.contact import Card
 
 
 def _export_kel_message(identity):
@@ -9,8 +9,6 @@ def _export_kel_message(identity):
     Export the full messagized KEL (event + attached signatures) for an Identity.
     This simulates what an OOBI endpoint would serve.
     """
-    from keri.core import eventing as keri_eventing
-    from keri.core.indexing import Siger
     from keri.db.dbing import dgKey, snKey
     
     pre = identity._hab.pre

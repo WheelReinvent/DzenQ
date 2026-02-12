@@ -1,6 +1,7 @@
 
 import pytest
-from keriac import ACDC, Identity, Event
+from keriac.documents import Credential
+from keriac.agents import Identity
 from keriac.const import Fields
 
 def test_event_properties(alice):
@@ -23,7 +24,7 @@ def test_acdc_properties(alice):
     schema = "EBm9vXQ9y9A9p9v9v9v9v9v9v9v9v9v9v9v9v9v9v9v"
     attributes = {"name": "Alice"}
     
-    cred = ACDC.create(issuer=alice, schema=schema, attributes=attributes)
+    cred = Credential.create(issuer_aid=alice.aid, schema=schema, attributes=attributes)
     
     # Check properties
     assert cred.issuer == alice.aid

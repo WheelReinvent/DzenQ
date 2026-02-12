@@ -1,5 +1,7 @@
 import pytest
-from keriac import Identity, ACDC, SAID, SAD, DataRecord
+from keriac.agents import Identity
+from keriac.documents import Credential
+from keriac.domain import SAID, SAD, DataRecord
 
 @pytest.fixture
 def alice():
@@ -26,7 +28,7 @@ def test_said_calculate_object(alice):
     schema_said = "EM9M_xyz_dummy_schema_said_1234567890" 
     attributes = {"name": "Alice Credential"}
     
-    cred = ACDC.create(issuer=alice, schema=schema_said, attributes=attributes)
+    cred = Credential.create(issuer_aid=alice.aid, schema=schema_said, attributes=attributes)
     
     # Calculate SAID for the object
     original_said = cred.said
@@ -44,9 +46,9 @@ def test_acdc_inheritance(alice):
     """Verify that ACDC correctly inherits from SAD and has SAID type."""
     schema_said = "EM9M_xyz_dummy_schema_said_1234567890" 
     attributes = {"name": "Alice Credential"}
-    cred = ACDC.create(issuer=alice, schema=schema_said, attributes=attributes)
+    cred = Credential.create(issuer_aid=alice.aid, schema=schema_said, attributes=attributes)
     
-    assert isinstance(cred, ACDC)
+    assert isinstance(cred, Credential)
     assert isinstance(cred, SAD)
     assert isinstance(cred.said, SAID)
     assert cred.said.startswith("E")
@@ -66,7 +68,7 @@ def test_use_case(alice):
     attributes = {"message": "Congrat Ivan with Birthday", "award": "Best Developer"}
     
     # Passing ivan.aid as recipient
-    cred = ACDC.create(issuer=alice, schema=schema_said, attributes=attributes, recipient=ivan.aid)
+    cred = Credential.create(issuer_aid=alice.aid, schema=schema_said, attributes=attributes, recipient=ivan.aid)
     
     # 2. Alice anchors the ACDC in her KEL
     alice.anchor(cred)

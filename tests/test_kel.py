@@ -1,5 +1,7 @@
 import pytest
-from keriac import Identity, KeyLog, InceptionEvent, InteractionEvent
+from keriac.agents import Identity
+from keriac.logbook import KeyLog
+from keriac.logbook.entries import InceptionEvent, InteractionEvent
 
 @pytest.fixture
 def alice():

@@ -1,8 +1,8 @@
 from typing import List, Dict, Any, Optional, TYPE_CHECKING
 import json
+from .credential import Credential
+# from ..logbook import TransactionLog
 
-if TYPE_CHECKING:
-    from .credential import ACDC
 
 class Presentation:
     """
@@ -13,17 +13,19 @@ class Presentation:
     - 'Selective Disclosure' is implemented as a logical view (disclosed_attributes).
     - The receiver uses 'disclosed_attributes' for business logic, but verifies the full credential.
     """
-    
-    def __init__(self, credential: 'ACDC', disclose_fields: Optional[List[str]] = None):
+
+    #TODO Transaction log circular dependency
+    def __init__(self, credential: Credential, transaction_log: "TransactionLog",  disclose_fields: Optional[List[str]] = None):
         """
         Initialize a Presentation.
         
         Args:
-            credential (ACDC): The full credential to present.
+            credential (Credential): The full credential to present.
             disclose_fields (list): List of attribute names to disclose. 
                                     If None, all attributes are disclosed.
         """
         self.credential = credential
+        self.transaction_log = transaction_log
         self._disclose_fields = disclose_fields
         
     @property
@@ -66,7 +68,7 @@ class Presentation:
         # self.credential.verify_schema() 
         
         # 3. Check Revocation
-        if self.credential.is_revoked():
+        if self.transaction_log.status(self.credential) == "Revoked":
             return False
             
         return True

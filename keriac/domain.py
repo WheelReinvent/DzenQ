@@ -1,6 +1,6 @@
 import json
 from abc import ABC, abstractmethod
-from typing import Optional, TypedDict, Dict, Any
+from typing import Optional, TypedDict, Dict, Any, Self
 
 from keri.core.coring import Saider
 from keri.core.signing import Signer as KeriSigner, Siger as KeriSiger
@@ -93,7 +93,7 @@ class Serializable(ABC):
 
     @classmethod
     @abstractmethod
-    def deserialize(cls, raw: bytes) -> "Serializable":
+    def deserialize(cls, raw: bytes) -> Self:
         """
         Create an object instance from the provided CESR bytes.
         """
@@ -308,7 +308,7 @@ class SAD(Serializable, ABC):
     def deserialize(cls, raw: bytes) -> "SAD":
         """Reconstruct SAD from bytes. Note: Base SAD will try to return a concrete instance."""
         # This implementation allows unpack(raw, SAD) to work by sniffing
-        from .serialize import unpack
+        from keriac.transport.serialize import unpack
         results = unpack(raw)
         if results and isinstance(results[0], SAD):
             return results[0]

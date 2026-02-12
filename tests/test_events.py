@@ -1,5 +1,7 @@
 import pytest
-from keriac import Identity, AID, SAID, Event, InceptionEvent, RotationEvent, InteractionEvent
+from keriac import AID, SAID
+from keriac.agents import Identity
+from keriac.logbook.entries import Event, InceptionEvent, InteractionEvent
 from keri.core import coring
 
 @pytest.fixture

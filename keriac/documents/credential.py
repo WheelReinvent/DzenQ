@@ -1,23 +1,20 @@
-from typing import Union, Optional, TYPE_CHECKING, List
+from typing import Union, Optional, List
 from keri.vc import proving
 
-from ..identity import Identity
-from ..domain import SAD, AID, SAID, Fields, ACDCDict
-from keriac.documents.schema import Schema, schema_registry
+from keriac import SAD, AID, SAID, Fields, ACDCDict
+from .schema import Schema, schema_registry
 
-if TYPE_CHECKING:
-    from ..logbook.transactions import TransactionLog
-    from .presentation import Presentation
+from keri.core.serdering import Serder
 
 
-class ACDC(SAD):
+class Credential(SAD): # ACDC
     """
     Academic wrapper for the Authentic Chained Data Container (ACDC).
     Represents a Verifiable Credential in the KERI ecosystem.
     Inherits from SAD for consistent SAID and serialization handling.
     """
 
-    def __init__(self, sad_or_raw: Union[ACDCDict, bytes, str, SAD, 'Serder']):
+    def __init__(self, sad_or_raw: Union[ACDCDict, bytes, str, SAD, Serder]):
         """
         Initialize an ACDC by wrapping existing data.
         To create a NEW credential, use ACDC.create().
@@ -25,8 +22,7 @@ class ACDC(SAD):
         Args:
             sad_or_raw: Existing ACDC data as a dict, bytes, SAD instance, or Serder.
         """
-        from keri.core.serdering import Serder
-        if isinstance(sad_or_raw, ACDC):
+        if isinstance(sad_or_raw, Credential):
              self._serder = sad_or_raw._serder
         elif isinstance(sad_or_raw, dict):
              self._serder = Serder(sad=sad_or_raw)
@@ -54,19 +50,19 @@ class ACDC(SAD):
 
     @classmethod
     def create(cls, 
-               issuer: Identity, 
+               issuer_aid: SAID,
                schema: Union[str, Schema], 
                attributes: dict, 
                recipient: Optional[str] = None,
                status: Optional[str] = None,
                source: Optional[Union[dict, list]] = None,
                rules: Optional[Union[dict, list]] = None,
-               **kwargs) -> "ACDC":
+               **kwargs) -> "Credential":
         """
         Create a new ACDC credential.
         
         Args:
-            issuer: The Identity issuing the credential.
+            issuer_aid: The AID of Identity issuing the credential.
             schema: Schema instance or alias/SAID.
             attributes: The data fields for the credential.
             recipient: Optional AID of the recipient.
@@ -76,13 +72,13 @@ class ACDC(SAD):
             **kwargs: Additional fields for proving.credential.
             
         Returns:
-            ACDC: A new ACDC instance.
+            Credential: A new ACDC instance.
         """
         # Resolve schema SAID
         schema_said = schema_registry.resolve_said(schema)
 
         serder = proving.credential(
-            issuer=issuer.aid,
+            issuer=issuer_aid,
             schema=schema_said,
             data=attributes,
             recipient=recipient,
@@ -130,7 +126,7 @@ class ACDC(SAD):
         return self.data[Fields.ATTRIBUTES]
 
     def __repr__(self):
-        return f"ACDC(said='{self.said}')"
+        return f"Credential(said='{self.said}')"
 
     @property
     def recipient(self) -> Optional[AID]:
@@ -146,57 +142,4 @@ class ACDC(SAD):
         if 'i' in attrs:
             return AID(attrs['i'])
         return None
-
-    def present(self, disclose_fields: Optional[List[str]] = None) -> 'Presentation':
-        """
-        Create a Presentation from this credential.
-        
-        Args:
-            disclose_fields (list): Attributes to reveal.
-            
-        Returns:
-            Presentation: The presentation object.
-        """
-        from .presentation import Presentation
-        return Presentation(credential=self, disclose_fields=disclose_fields)
-    
-    # --- TEL / Registry Integration ---
-
-    @property
-    def transaction_log(self) -> Optional['TransactionLog']:
-        """
-        The TransactionLog instance associated with this credential.
-        Attached at runtime if issued via Identity.issue_credential.
-        """
-        return getattr(self, '_transaction_log', None)
-
-    @transaction_log.setter
-    def transaction_log(self, value: 'TransactionLog'):
-        self._transaction_log = value
-
-    def revoke(self):
-        """
-        Revoke this credential.
-        Requires the credential to be attached to a TransactionLog (via issue_credential).
-        """
-        if not self.transaction_log:
-            raise ValueError("Cannot revoke: TransactionLog instance not attached to this credential.")
-        
-        self.transaction_log.revoke(self)
-
-    @property
-    def revoked(self) -> bool:
-        """
-        Check if the credential is revoked.
-        """
-        # In a real system, this would query the DB/Ledger using self.status (Registry AID)
-        # For now, we delegate to the attached registry if present
-        if self.transaction_log:
-            status = self.transaction_log.status(self)
-            return status == "Revoked"
-        return False
-        
-    def is_revoked(self) -> bool:
-        """Alias for revoked property."""
-        return self.revoked
 
