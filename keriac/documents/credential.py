@@ -1,13 +1,13 @@
 from typing import Union, Optional, TYPE_CHECKING, List
 from keri.vc import proving
 
-from .identity import Identity
-from .base import SAD, AID, SAID, Fields
-from .types import ACDCDict
-from .schema import Schema, schema_registry
+from ..identity import Identity
+from ..base import SAD, AID, SAID, Fields
+from ..types import ACDCDict
+from ..schema import Schema, schema_registry
 
 if TYPE_CHECKING:
-    from .registry import Registry
+    from ..logbook.transactions import TransactionLog
     from .presentation import Presentation
 
 
@@ -18,16 +18,40 @@ class ACDC(SAD):
     Inherits from SAD for consistent SAID and serialization handling.
     """
 
-    def __init__(self, 
-                 sad_or_raw: Union[ACDCDict, bytes, str, SAD]):
+    def __init__(self, sad_or_raw: Union[ACDCDict, bytes, str, SAD, 'Serder']):
         """
         Initialize an ACDC by wrapping existing data.
         To create a NEW credential, use ACDC.create().
         
         Args:
-            sad_or_raw: Existing ACDC data as a dict, bytes, or SAD instance.
+            sad_or_raw: Existing ACDC data as a dict, bytes, SAD instance, or Serder.
         """
-        super().__init__(sad_or_raw)
+        from keri.core.serdering import Serder
+        if isinstance(sad_or_raw, ACDC):
+             self._serder = sad_or_raw._serder
+        elif isinstance(sad_or_raw, dict):
+             self._serder = Serder(sad=sad_or_raw)
+        elif isinstance(sad_or_raw, (bytes, bytearray, memoryview)):
+             self._serder = Serder(raw=bytes(sad_or_raw))
+        elif hasattr(sad_or_raw, 'sad'): # Likely a keri Serder
+             self._serder = sad_or_raw
+        else:
+            raise ValueError(f"Unsupported type for ACDC initialization: {type(sad_or_raw)}")
+
+    @property
+    def data(self) -> ACDCDict:
+        """The internal dictionary representation (SAD) of the ACDC."""
+        return self._serder.sad
+
+    @property
+    def said(self) -> SAID:
+        """The Self-Addressing Identifier (SAID) of the ACDC."""
+        return SAID(self._serder.said)
+
+    @property
+    def raw(self) -> bytes:
+        """The raw bytes serialization of the ACDC (CESR)."""
+        return self._serder.raw
 
     @classmethod
     def create(cls, 
@@ -71,11 +95,6 @@ class ACDC(SAD):
         return cls(serder)
 
     @property
-    def data(self) -> ACDCDict:
-        """The internal dictionary representation (SAD) of the object."""
-        return super().data
-
-    @property
     def issuer(self) -> AID:
         """The Issuer AID."""
         return AID(self.data[Fields.ISSUER])
@@ -108,13 +127,8 @@ class ACDC(SAD):
     @property
     def attributes(self) -> dict:
         """The credential attributes."""
-        from .const import Fields
+        from ..const import Fields
         return self.data[Fields.ATTRIBUTES]
-
-    @classmethod
-    def deserialize(cls, raw: bytes) -> "ACDC":
-        """Reconstruct ACDC from bytes."""
-        return cls(raw)
 
     def __repr__(self):
         return f"ACDC(said='{self.said}')"
@@ -122,7 +136,7 @@ class ACDC(SAD):
     @property
     def recipient(self) -> Optional[AID]:
         """The Recipient AID (if any)."""
-        from .const import Fields
+        from ..const import Fields
         # 'i' in the 'a' block (attributes) is usually the subject/recipient
         # But in KERI ACDC, recipient can be top-level or in attributes depending on version/spec.
         # keri.vc.proving.credential puts recipient in top level subject 'i' usually? 
@@ -151,26 +165,26 @@ class ACDC(SAD):
     # --- TEL / Registry Integration ---
 
     @property
-    def registry(self) -> Optional['Registry']:
+    def transaction_log(self) -> Optional['TransactionLog']:
         """
-        The Registry instance associated with this credential.
+        The TransactionLog instance associated with this credential.
         Attached at runtime if issued via Identity.issue_credential.
         """
-        return getattr(self, '_registry', None)
+        return getattr(self, '_transaction_log', None)
 
-    @registry.setter
-    def registry(self, value: 'Registry'):
-        self._registry = value
+    @transaction_log.setter
+    def transaction_log(self, value: 'TransactionLog'):
+        self._transaction_log = value
 
     def revoke(self):
         """
         Revoke this credential.
-        Requires the credential to be attached to a Registry (via issue_credential).
+        Requires the credential to be attached to a TransactionLog (via issue_credential).
         """
-        if not self.registry:
-            raise ValueError("Cannot revoke: Registry instance not attached to this credential.")
+        if not self.transaction_log:
+            raise ValueError("Cannot revoke: TransactionLog instance not attached to this credential.")
         
-        self.registry.revoke(self)
+        self.transaction_log.revoke(self)
 
     @property
     def revoked(self) -> bool:
@@ -179,8 +193,8 @@ class ACDC(SAD):
         """
         # In a real system, this would query the DB/Ledger using self.status (Registry AID)
         # For now, we delegate to the attached registry if present
-        if self.registry:
-            status = self.registry.status(self)
+        if self.transaction_log:
+            status = self.transaction_log.status(self)
             return status == "Revoked"
         return False
         

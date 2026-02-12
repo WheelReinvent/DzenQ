@@ -2,7 +2,7 @@ import pytest
 import json
 from typing import List
 from keriac import Identity
-from keriac.registry import Registry
+from keriac.logbook.transactions import TransactionLog
 
 def test_issuance_with_recipient():
     """
@@ -10,14 +10,14 @@ def test_issuance_with_recipient():
     """
     issuer = Identity(name="issuer_pres", temp=True)
     recipient = Identity(name="recipient_pres", temp=True)
-    registry = issuer.create_registry("issuer_reg")
+    log = issuer.create_transaction_log("issuer_log")
     
     data = {"name": "Bob", "role": "Employee"}
     
     # Issue to recipient
     credential = issuer.issue_credential(
         data=data,
-        registry=registry,
+        transaction_log=log,
         recipient=recipient.aid,
         schema="EMQWE..."
     )
@@ -38,12 +38,12 @@ def test_presentation_flow():
     3. Verify Presentation structure
     """
     issuer = Identity(name="issuer_flow", temp=True)
-    registry = issuer.create_registry("flow_reg")
+    log = issuer.create_transaction_log("flow_log")
     
     data = {"name": "Bob", "date": "2023-01-01", "secret": "XYZ"}
     credential = issuer.issue_credential(
         data=data,
-        registry=registry,
+        transaction_log=log,
         schema="EMQWE..."
     )
     
@@ -78,12 +78,12 @@ def test_verification_flow():
     2. Revoked Credential -> False
     """
     issuer = Identity(name="issuer_verify", temp=True)
-    registry = issuer.create_registry("verify_reg")
+    log = issuer.create_transaction_log("verify_log")
     
     data = {"license": "valid"}
     credential = issuer.issue_credential(
         data=data,
-        registry=registry,
+        transaction_log=log,
         schema="EMQWE..."
     )
     

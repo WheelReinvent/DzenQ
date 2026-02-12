@@ -1,5 +1,5 @@
 import pytest
-from keriac import Identity, ACDC, SAID, SAD
+from keriac import Identity, ACDC, SAID, SAD, DataRecord
 
 @pytest.fixture
 def alice():
@@ -10,8 +10,8 @@ def alice():
 def test_said_calculate_dict():
     """Test SAID calculation for a raw dictionary."""
     data = {"name": "Alice", "d": ""}
-    # Create SAD to calculate SAID
-    sad = SAD(data)
+    # Create DataRecord to calculate SAID
+    sad = DataRecord(data)
     said = sad.said
     
     assert isinstance(said, SAID)
@@ -37,7 +37,7 @@ def test_said_calculate_object(alice):
 def test_said_verify_invalid():
     """Test SAID verification with invalid data."""
     data = {"name": "Bob", "d": "E_invalid_said_here"}
-    sad = SAD(data)
+    sad = DataRecord(data)
     assert not sad.verify()
 
 def test_acdc_inheritance(alice):

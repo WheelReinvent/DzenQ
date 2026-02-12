@@ -19,19 +19,21 @@ class Schema(SAD):
             raw_or_dict: The raw JSON bytes, a dictionary of the schema, 
                          or a JSON string.
         """
-        super().__init__(raw_or_dict)
-        self._schemer = self._sad
+        if isinstance(raw_or_dict, Schema):
+            self._schemer = raw_or_dict._schemer
+        elif isinstance(raw_or_dict, dict):
+            self._schemer = scheming.Schemer(sed=raw_or_dict)
+        elif isinstance(raw_or_dict, (bytes, bytearray, memoryview)):
+            self._schemer = scheming.Schemer(raw=bytes(raw_or_dict))
+        elif isinstance(raw_or_dict, str):
+            self._schemer = scheming.Schemer(raw=raw_or_dict.encode("utf-8"))
+        else:
+            raise ValueError(f"Unsupported type for Schema initialization: {type(raw_or_dict)}")
 
-    @override
-    def _load_internal_repr(self, sad: Optional[dict] = None, raw: Optional[bytes] = None):
-        """Override to load a Schemer instead of a Serder."""
-        return scheming.Schemer(sed=sad, raw=raw)
-
-    @override
     @property
     def data(self) -> SADDict:
         """The underlying JSON Schema dictionary."""
-        return self._sad.sed
+        return self._schemer.sed
 
     @property
     def said(self) -> SAID:
@@ -40,13 +42,8 @@ class Schema(SAD):
 
     @property
     def raw(self) -> bytes:
-        """The raw bytes serialization of the schema."""
+        """The raw bytes serialization of the schema (CESR)."""
         return self._schemer.raw
-
-    @property
-    def qb64(self) -> str:
-        """The qb64 serialization of the schema."""
-        return self.raw.decode("utf-8")
 
     def validate(self, data: bytes | dict) -> bool:
         """

@@ -1,8 +1,8 @@
 from typing import Iterator
-from .event import Event, InteractionEvent
-class KEL:
+from ..event import Event, InteractionEvent
+class KeyLog:
     """
-    KEL (Key Event Log) provides an iterable interface to an identity's event history.
+    KeyLog (Key Event Log) provides an iterable interface to an identity's event history.
     """
 
     def __init__(self, hab):
@@ -33,4 +33,4 @@ class KEL:
         return False
 
     def __repr__(self):
-        return f"KEL(identity='{self._hab.name}', length={len(self)})"
+        return f"KeyLog(identity='{self._hab.name}', length={len(self)})"

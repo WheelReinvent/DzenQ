@@ -4,9 +4,9 @@ from .base import Serializable
 from keri import kering
 from keri.kering import sniff, Colds, Protocols
 from keri.core.serdering import Serdery
-from .base import SAID, SAD
+from .base import SAID, SAD, DataRecord
 from .event import Event
-from .acdc import ACDC
+from .documents.credential import ACDC
 from .crypto import PublicKey, Signature
 from keri.help.helping import nabSextets, codeB2ToB64
 from keri.core.coring import Matter, DigDex, PreDex, NonTransDex
@@ -57,6 +57,8 @@ def unpack(raw: bytes, cls: Type[T] = None) -> List[Union[T, Serializable]]:
         
         reaped = False
         if cold == Colds.msg:
+            # Backup ims because reap might partially consume it or modify it on failure
+            ims_backup = bytes(ims)
             try:
                 # Polymorphic message reaping using KERI's Serdery
                 serder = serdery.reap(ims)
@@ -65,11 +67,29 @@ def unpack(raw: bytes, cls: Type[T] = None) -> List[Union[T, Serializable]]:
                 elif serder.proto == Protocols.acdc:
                     results.append(ACDC(serder))
                 else:
-                    results.append(SAD(serder))
+                    results.append(DataRecord(serder))
                 reaped = True
-            except (kering.VersionError, kering.ProtocolError, kering.ValidationError, ValueError):
-                # Fallback to primitive parsing if message parsing fails
-                pass
+            except (kering.VersionError, kering.ProtocolError, kering.ValidationError, kering.DeserializeError, ValueError):
+                # Restore ims
+                ims[:] = ims_backup
+                # Fallback: try to see if it's a valid DataRecord even if reap failed
+                # This handles arbitrary SADs that have a version string but aren't standard KERI messages.
+                try:
+                    import json
+                    import re
+                    # Sniff for version string to determine size. Pattern matches KERI/ACDC version strings.
+                    # Capture group 2 is the hex size.
+                    match = re.search(rb'"v"\s*:\s*"([A-Z0-9]{4}[0-9A-F]{2}[A-Z]{4}([0-9A-F]{6})_)"', ims_backup[:128])
+                    if match:
+                        size_str = match.group(2).decode("utf-8")
+                        size = int(size_str, 16)
+                        if size > 0 and size <= len(ims_backup):
+                            sad_data = json.loads(ims_backup[:size])
+                            results.append(DataRecord(sad_data))
+                            del ims[:size]
+                            reaped = True
+                except Exception:
+                    pass
 
         if not reaped:
 

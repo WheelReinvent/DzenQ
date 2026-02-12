@@ -1,5 +1,5 @@
 import pytest
-from keriac import Identity, SAD, PublicKey, Signature, pack, unpack
+from keriac import Identity, SAD, PublicKey, Signature, pack, unpack, DataRecord
 
 
 @pytest.fixture
@@ -53,7 +53,7 @@ def test_signature_properties(alice):
 
 def test_sad_signing(alice):
     """Test SAD signing with academic API."""
-    sad = SAD({"v": "KERI10JSON000050_", "d": "", "msg": "test"})
+    sad = DataRecord({"v": "KERI10JSON000050_", "d": "", "msg": "test"})
     signature = sad.sign(alice)
     
     assert isinstance(signature, Signature)

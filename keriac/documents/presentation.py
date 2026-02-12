@@ -2,7 +2,7 @@ from typing import List, Dict, Any, Optional, TYPE_CHECKING
 import json
 
 if TYPE_CHECKING:
-    from .acdc import ACDC
+    from .credential import ACDC
 
 class Presentation:
     """

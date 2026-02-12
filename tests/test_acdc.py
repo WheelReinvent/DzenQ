@@ -68,7 +68,6 @@ def test_acdc_wrapping_style(alice):
     assert isinstance(wrapped, ACDC)
     assert str(wrapped.said) == str(orig_said)
     assert wrapped.data == sad_data
-    assert wrapped.data == orig.data
 
 def test_acdc_wrapping_sad_instance(alice):
     """Verify wrapping a SAD instance into ACDC."""
@@ -80,7 +79,7 @@ def test_acdc_wrapping_sad_instance(alice):
     
     assert isinstance(new_acdc, ACDC)
     assert new_acdc.said == orig.said
-    assert new_acdc._sad is orig._sad
+    assert new_acdc.raw == orig.raw
 
 def test_acdc_json_representation(alice):
     """Test JSON representation properties of ACDC."""

@@ -8,7 +8,7 @@ import requests
 from keri.core import eventing
 
 if TYPE_CHECKING:
-    from .identity import Identity
+    from ..identity import Identity
 
 class Card:
     """
@@ -46,7 +46,7 @@ class Card:
         Raises:
             ValueError: If the OOBI URL is invalid or KEL cannot be fetched.
         """
-        from .identity import Identity
+        from ..identity import Identity
         from keri.app import habbing
         from keri.core import serdering
         from keri.core.counting import Counter

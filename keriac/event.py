@@ -1,26 +1,25 @@
 from .const import Fields
-from .base import SAD, AID
+from .base import SAD, AID, SAID
 from .types import EventDict
 from keri.core import coring, serdering
 
 class Event(SAD):
     """
-    Base class for all KERI events.
-    Uses __new__ as a factory to return specific subclasses.
+    Academic wrapper for all KERI events.
+    Uses __new__ as a factory to return specific subclasses (icp, ixn, rot, etc.).
     """
 
     def __new__(cls, sad_or_raw):
         """
         Factory logic to return the appropriate Event subclass.
         """
-        # Unwrap SAD instance if provided
-        if isinstance(sad_or_raw, SAD):
-            serder = sad_or_raw._sad
+        if isinstance(sad_or_raw, Event):
+            serder = sad_or_raw._serder
         elif isinstance(sad_or_raw, dict):
             serder = serdering.SerderKERI(sad=sad_or_raw)
         elif isinstance(sad_or_raw, (bytes, bytearray, memoryview)):
             serder = serdering.SerderKERI(raw=bytes(sad_or_raw))
-        elif hasattr(sad_or_raw, 'sad'): # Likely a Serder
+        elif hasattr(sad_or_raw, 'sad'): # Likely a keri Serder
             serder = sad_or_raw
         else:
             raise ValueError(f"Unsupported type for Event initialization: {type(sad_or_raw)}")
@@ -39,22 +38,35 @@ class Event(SAD):
             subclass = Event
             
         instance = super(Event, cls).__new__(subclass)
+        instance._serder = serder
         return instance
 
     def __init__(self, sad_or_raw):
         """
-        Initialize the event instance.
+        Initialize the event instance. 
+        Note: __new__ already handles _serder assignment.
         """
-        # SAD.__init__ handles the heavy lifting of wrapping into _sad
-        if isinstance(sad_or_raw, SAD):
-            super().__init__(sad_or_raw._sad)
-        else:
-            super().__init__(sad_or_raw)
+        pass
+
+    @classmethod
+    def deserialize(cls, raw: bytes) -> "Event":
+        """Reconstruct the event from bytes using factory logic."""
+        return cls(raw)
 
     @property
     def data(self) -> EventDict:
-        """The internal dictionary representation (SAD) of the object."""
-        return super().data
+        """The internal dictionary representation (SAD) of the event."""
+        return self._serder.sad
+
+    @property
+    def said(self) -> SAID:
+        """The Self-Addressing Identifier (SAID) of the event."""
+        return SAID(self._serder.said)
+
+    @property
+    def raw(self) -> bytes:
+        """The raw bytes serialization of the event (CESR)."""
+        return self._serder.raw
 
     @property
     def aid(self) -> AID:
@@ -130,7 +142,7 @@ class RotationEvent(Event):
         """
         from .crypto import PublicKey
         # KERI stores the new current keys in the rotation event's verfers
-        verfers = self._sad.verfers
+        verfers = self._serder.verfers
         return [PublicKey(v.qb64) for v in verfers]
     
     @property
@@ -147,7 +159,7 @@ class RotationEvent(Event):
             List[str]: qb64 digests of next keys.
         """
         # In KERI, 'n' is the field for next key digests
-        return self._sad.sad.get('n', [])
+        return self._serder.sad.get('n', [])
     
     def __repr__(self):
         return f"RotationEvent(aid='{self.aid}', sequence={self.sequence})"

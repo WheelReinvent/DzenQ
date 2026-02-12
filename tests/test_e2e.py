@@ -26,9 +26,9 @@ Concepts demonstrated:
 import pytest
 import requests_mock
 
-from keriac import Identity, ACDC, KEL
-from keriac.discovery import Card
-from keriac.registry import Registry
+from keriac import Identity, ACDC, KeyLog
+from keriac.documents.contact import Card
+from keriac.logbook.transactions import TransactionLog
 
 
 def _export_kel_messages(identity):
@@ -111,19 +111,19 @@ class TestAliceSendsThankYouToBob:
         # event into her KEL, establishing a verifiable trust chain.
         #
 
-        registry = alice.create_registry(name="alice_thankyou_registry")
+        log = alice.create_transaction_log(name="alice_thankyou_log")
 
-        # The registry has been anchored in Alice's KEL
-        assert isinstance(registry, Registry)
-        assert registry.reg_k is not None
+        # The log has been anchored in Alice's KEL
+        assert isinstance(log, TransactionLog)
+        assert log.reg_k is not None
 
         alice_kel = list(alice.kel)
         assert len(alice_kel) == 2  # icp + ixn (registry anchor)
         assert alice_kel[-1].event_type == "ixn"
 
-        # The anchor seal references the registry
+        # The anchor seal references the log
         anchor = alice_kel[-1].anchors[0]
-        assert anchor["i"] == registry.reg_k
+        assert anchor["i"] == log.reg_k
 
         # ================================================================
         # ACT 3: Credential Issuance — The ThankYou Certificate
@@ -145,7 +145,7 @@ class TestAliceSendsThankYouToBob:
 
         credential = alice.issue_credential(
             data=thank_you_data,
-            registry=registry,
+            transaction_log=log,
             recipient=bob.aid,
             schema="EThankYouSchema_v1",
         )
@@ -163,7 +163,7 @@ class TestAliceSendsThankYouToBob:
 
         # The issuance event is anchored in Alice's KEL
         alice_kel = list(alice.kel)
-        assert len(alice_kel) == 3  # icp + registry + issuance
+        assert len(alice_kel) == 3  # icp + log + issuance
 
         # ================================================================
         # ACT 4: Digital Signature — Alice Signs a Message for Bob
@@ -300,7 +300,7 @@ class TestAliceSendsThankYouToBob:
 
         # Revocation is anchored in Alice's KEL
         alice_kel = list(alice.kel)
-        assert len(alice_kel) == 4  # icp + registry + issuance + revocation
+        assert len(alice_kel) == 4  # icp + log + issuance + revocation
         assert alice_kel[-1].event_type == "ixn"
 
         # Verification now fails due to revocation

@@ -2,13 +2,13 @@ from typing import TYPE_CHECKING, Dict, Any
 
 from keri.vdr import eventing
 from keri.core import coring
-from .base import Serializable, SAID
+from ..base import Serializable, SAID
 
 if TYPE_CHECKING:
-    from .identity import Identity
-    from .acdc import ACDC
+    from ..identity import Identity
+    from ..documents.credential import ACDC
 
-class Registry:
+class TransactionLog:
     """
     Verifiable Data Registry (VDR) implementation.
     
@@ -23,7 +23,7 @@ class Registry:
 
     def __init__(self, issuer: 'Identity', name: str):
         """
-        Initialize a Registry wrapper.
+        Initialize a TransactionLog wrapper.
 
         Args:
             issuer (Identity): The Identity that controls this registry.

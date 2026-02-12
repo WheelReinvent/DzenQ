@@ -1,7 +1,7 @@
 import pytest
 import requests_mock
 from keriac import Identity
-from keriac.discovery import Card
+from keriac.documents.contact import Card
 
 
 def _export_kel_message(identity):

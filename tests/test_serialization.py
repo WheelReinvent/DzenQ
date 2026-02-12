@@ -1,5 +1,5 @@
 import pytest
-from keriac import SAD, SAID, Event, ACDC, pack, unpack, Identity, PublicKey, Signature
+from keriac import SAID, Event, ACDC, pack, unpack, Identity, PublicKey, Signature, DataRecord
 from keriac.event import InceptionEvent, InteractionEvent
 
 def test_said_serialization():
@@ -15,11 +15,12 @@ def test_said_serialization():
 
 def test_sad_serialization():
     data = {"v": "KERI10JSON000050_", "d": "ENvO1234567890123456789012345678901234567890", "foo": "bar"}
-    sad = SAD(data)
+    sad = DataRecord(data)
     raw = sad.serialize()
     assert raw == sad.raw
     assert len(raw) == sad.size
     
+    from keriac import SAD
     unpacked = SAD.deserialize(raw)
     assert unpacked.data == sad.data
     assert unpacked.said == sad.said

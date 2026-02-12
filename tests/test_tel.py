@@ -1,6 +1,6 @@
 import pytest
 from keriac import Identity, unpack, Event
-from keriac.registry import Registry
+from keriac.logbook.transactions import TransactionLog
 
 def test_registry_lifecycle():
     """
@@ -11,10 +11,10 @@ def test_registry_lifecycle():
     # 1. Setup Issuer (Alice)
     alice = Identity(name="alice_tel_lifecycle", temp=True)
     
-    # 2. Create Registry
-    registry = alice.create_registry(name="test_registry")
-    assert isinstance(registry, Registry)
-    assert registry.reg_k is not None
+    # 2. Create Transaction Log
+    log = alice.create_transaction_log(name="test_log")
+    assert isinstance(log, TransactionLog)
+    assert log.reg_k is not None
     
     # 3. Verify Anchoring in Alice's KEL
     alice_kel = list(alice.kel)
@@ -28,20 +28,20 @@ def test_registry_lifecycle():
     assert len(anchors) == 1
     seal = anchors[0]
     # The seal for a registry inception is usually: {i: reg_k, s: 0, d: said}
-    assert seal['i'] == registry.reg_k
+    assert seal['i'] == log.reg_k
     assert seal['s'] == '0'
 
     alice.close()
 
 def test_credential_issuance_flow():
     """
-    Verify the flow of issuing a credential against a registry:
-    1. Registry creation
+    Verify the flow of issuing a credential against a transaction log:
+    1. Transaction log creation
     2. Credential issuance (anchored in KEL)
     3. ACDC structure verification
     """
     alice = Identity(name="alice_tel_issuance", temp=True)
-    registry = alice.create_registry(name="iss_registry")
+    log = alice.create_transaction_log(name="iss_log")
     
     data = {"name": "Alice Corp Employee"}
     
@@ -53,13 +53,13 @@ def test_credential_issuance_flow():
         # Issue Credential
         credential = alice.issue_credential(
             data=data,
-            registry=registry,
+            transaction_log=log,
             schema=schema_said
         )
         
         # Verify Credential Properties
         assert credential.issuer == alice.aid
-        assert credential.registry.reg_k == registry.reg_k
+        assert credential.transaction_log.reg_k == log.reg_k
         assert credential.is_revoked() is False
         
         # Verify Issuance Anchor in KEL
@@ -73,7 +73,7 @@ def test_credential_issuance_flow():
         anchors = iss_anchor.anchors
         assert len(anchors) == 1
         seal = anchors[0]
-        assert seal['i'] == registry.reg_k
+        assert seal['i'] == log.reg_k
         # issuance sn might depend on registry events, checked loosely here
         assert 's' in seal
         assert 'd' in seal
@@ -91,12 +91,12 @@ def test_revocation_flow():
     3. Verify revocation anchor in KEL
     """
     alice = Identity(name="alice_tel_revocation", temp=True)
-    registry = alice.create_registry(name="rev_registry")
+    log = alice.create_transaction_log(name="rev_log")
     
     data = {"license": "123"}
     credential = alice.issue_credential(
         data=data,
-        registry=registry,
+        transaction_log=log,
         schema="EMQWE..."
     )
     

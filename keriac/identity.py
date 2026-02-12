@@ -3,13 +3,13 @@ from keri.app import habbing
 
 from .base import AID
 from .event import Event
-from .event_log import KEL
+from .logbook.keys import KeyLog
 from .crypto import PublicKey, PrivateKey, Signature
 
 if TYPE_CHECKING:
-    from .registry import Registry
-    from .acdc import ACDC
-    from .presentation import Presentation
+    from .logbook.transactions import TransactionLog
+    from .documents.credential import ACDC
+    from .documents.presentation import Presentation
 
 
 class Identity:
@@ -72,7 +72,7 @@ class Identity:
         Raises:
             ValueError: If this is a Remote Identity (no keys).
         """
-        from .discovery import Card
+        from .documents.contact import Card
         return Card.issue(self, role=role)
 
 
@@ -115,9 +115,14 @@ class Identity:
         return Event(raw)
 
     @property
-    def kel(self) -> KEL:
+    def key_log(self) -> KeyLog:
         """Access the Key Event Log (KEL) for this identity."""
-        return KEL(self._hab)
+        return KeyLog(self._hab)
+    
+    @property
+    def kel(self) -> KeyLog:
+        """Alias for key_log."""
+        return self.key_log
     
     def sign(self, data: bytes) -> 'Signature':
         """
@@ -280,33 +285,37 @@ class Identity:
         )
         return Event(raw)
 
-    def create_registry(self, name: str) -> 'Registry':
+    def create_transaction_log(self, name: str) -> 'TransactionLog':
         """
-        Create a new Verifiable Data Registry (VDR) anchored to this identity.
+        Create a new Transaction Log (VDR) anchored to this identity.
 
         Args:
-            name (str): The alias for the new registry.
+            name (str): The alias for the new transaction log.
 
         Returns:
-            Registry: The newly created and committed registry.
+            TransactionLog: The newly created and committed transaction log.
         """
-        from .registry import Registry
-        registry = Registry(issuer=self, name=name)
-        registry.commit()
-        return registry
+        from .logbook.transactions import TransactionLog
+        log = TransactionLog(issuer=self, name=name)
+        log.commit()
+        return log
+    
+    def create_registry(self, name: str) -> 'TransactionLog':
+        """Alias for create_transaction_log."""
+        return self.create_transaction_log(name)
 
-    def issue_credential(self, data: dict, registry: 'Registry', schema: Any = None, recipient: Any = None, **kwargs) -> 'ACDC':
+    def issue_credential(self, data: dict, transaction_log: 'TransactionLog', schema: Any = None, recipient: Any = None, **kwargs) -> 'ACDC':
         """
-        Issue a credential using the provided registry.
+        Issue a credential using the provided transaction log.
 
         This process:
         1. Creates a signed ACDC credential.
-        2. Generates an issuance event (iss) in the registry.
+        2. Generates an issuance event (iss) in the transaction log.
         3. Anchors the issuance in this identity's KEL.
 
         Args:
             data (dict): The credential attributes.
-            registry (Registry): The registry to issue against.
+            transaction_log (TransactionLog): The transaction log to issue against.
             schema (Schema, optional): The schema for the credential.
             recipient (str or AID, optional): The recipient's AID.
             **kwargs: Additional arguments for ACDC creation.
@@ -314,24 +323,24 @@ class Identity:
         Returns:
             ACDC: The issued and anchored credential.
         """
-        from .acdc import ACDC
+        from .documents.credential import ACDC
 
         # 1. Create the ACDC
-        # We pass the registry AID as the 'status' field in the credential
+        # We pass the log AID as the 'status' field in the credential
         acdc = ACDC.create(
             issuer=self,
             schema=schema,
             attributes=data,
             recipient=str(recipient) if recipient else None,
-            status=str(registry.reg_k),
+            status=str(transaction_log.reg_k),
             **kwargs
         )
 
-        # 2. Issue against the registry (creates and anchors 'iss' event)
-        registry.issue(credential=acdc)
+        # 2. Issue against the transaction log (creates and anchors 'iss' event)
+        transaction_log.issue(credential=acdc)
 
-        # 3. Attach registry reference for convenience (acdc.revoke())
-        acdc.registry = registry
+        # 3. Attach log reference for convenience (acdc.revoke())
+        acdc.transaction_log = transaction_log
 
         return acdc
 
@@ -341,7 +350,7 @@ class Identity:
         
         Checks:
         1. Credential cryptographic integrity (SAID/Signature).
-        2. Revocation status (against Registry).
+        2. Revocation status (against TransactionLog).
         
         Args:
             presentation (Presentation): The presentation to verify.

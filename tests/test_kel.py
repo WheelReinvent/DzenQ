@@ -1,5 +1,5 @@
 import pytest
-from keriac import Identity, KEL, InceptionEvent, InteractionEvent
+from keriac import Identity, KeyLog, InceptionEvent, InteractionEvent
 
 @pytest.fixture
 def alice():
@@ -8,16 +8,16 @@ def alice():
     ident.close()
 
 def test_kel_iteration(alice):
-    """Verify KEL iteration and event types."""
+    """Verify KeyLog iteration and event types."""
     # Create some events
     alice.anchor(msg="First interaction")
     alice.anchor(msg="Second interaction")
     
-    kel = alice.kel
-    assert isinstance(kel, KEL)
-    assert len(kel) == 3  # Inception + 2 Interaction events
+    log = alice.key_log
+    assert isinstance(log, KeyLog)
+    assert len(log) == 3  # Inception + 2 Interaction events
     
-    events = list(kel)
+    events = list(log)
     assert len(events) == 3
     
     assert isinstance(events[0], InceptionEvent)
@@ -30,7 +30,7 @@ def test_kel_iteration(alice):
     assert events[2].sequence == 2
 
 def test_kel_representation(alice):
-    """Verify KEL string representation."""
-    kel = alice.kel
-    assert "KEL" in repr(kel)
-    assert "length=1" in repr(kel)
+    """Verify KeyLog string representation."""
+    log = alice.key_log
+    assert "KeyLog" in repr(log)
+    assert "length=1" in repr(log)
