@@ -1,6 +1,5 @@
-import pytest
 from keriac import Identity, unpack
-from keriac.event import DelegatedInceptionEvent, InteractionEvent, InceptionEvent
+from keriac.logbook.entries.event import DelegatedInceptionEvent, InteractionEvent, InceptionEvent
 
 def test_successful_delegation():
     # 1. Setup Delegator (Alice)

@@ -1,9 +1,8 @@
 from .serialize import Serializable, pack, unpack
-from .crypto import PublicKey, Signature, PrivateKey
-from .base import SAD, AID, SAID, DataRecord
+from .domain import PublicKey, Signature, PrivateKey, SAD, AID, SAID, DataRecord
 from .const import Schemas
-from .schema import Schema, schema_registry
-from .event import Event, InceptionEvent, RotationEvent, InteractionEvent, DelegatedInceptionEvent
+from keriac.documents.schema import Schema, schema_registry
+from keriac.logbook.entries.event import Event, InceptionEvent, RotationEvent, InteractionEvent, DelegatedInceptionEvent
 from .logbook.keys import KeyLog
 from .logbook.transactions import TransactionLog
 from .identity import Identity

@@ -1,5 +1,5 @@
 from typing import Iterator
-from ..event import Event, InteractionEvent
+from keriac.logbook.entries.event import Event, InteractionEvent
 class KeyLog:
     """
     KeyLog (Key Event Log) provides an iterable interface to an identity's event history.

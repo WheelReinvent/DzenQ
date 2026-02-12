@@ -2,7 +2,7 @@ import json
 from typing import Dict
 import pytest
 from keriac import ACDC, Identity, Schema, schema_registry
-from keriac.base import SAID
+from keriac.domain import SAID
 from keriac.const import Schemas
 @pytest.fixture
 def alice():

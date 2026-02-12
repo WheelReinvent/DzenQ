@@ -1,9 +1,8 @@
 import json
 from typing import Union, Dict, Optional, override
 from keri.core import scheming
-from .base import SAD, SAID
-from .const import Schemas
-from .types import SADDict, SchemaDict
+from keriac.domain import SAD, SAID, SADDict, SchemaDict
+from keriac.const import Schemas
 
 class Schema(SAD):
     """

@@ -1,8 +1,7 @@
 from typing import TYPE_CHECKING, Dict, Any
 
 from keri.vdr import eventing
-from keri.core import coring
-from ..base import Serializable, SAID
+from ..domain import Serializable, SAID
 
 if TYPE_CHECKING:
     from ..identity import Identity

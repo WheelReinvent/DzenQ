@@ -2,9 +2,8 @@ from typing import Union, Optional, TYPE_CHECKING, List
 from keri.vc import proving
 
 from ..identity import Identity
-from ..base import SAD, AID, SAID, Fields
-from ..types import ACDCDict
-from ..schema import Schema, schema_registry
+from ..domain import SAD, AID, SAID, Fields, ACDCDict
+from keriac.documents.schema import Schema, schema_registry
 
 if TYPE_CHECKING:
     from ..logbook.transactions import TransactionLog
@@ -136,7 +135,6 @@ class ACDC(SAD):
     @property
     def recipient(self) -> Optional[AID]:
         """The Recipient AID (if any)."""
-        from ..const import Fields
         # 'i' in the 'a' block (attributes) is usually the subject/recipient
         # But in KERI ACDC, recipient can be top-level or in attributes depending on version/spec.
         # keri.vc.proving.credential puts recipient in top level subject 'i' usually? 

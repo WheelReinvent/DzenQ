@@ -1,6 +1,5 @@
-from .const import Fields
-from .base import SAD, AID, SAID
-from .types import EventDict
+from keriac.const import Fields
+from keriac.domain import SAD, AID, SAID, EventDict, PublicKey
 from keri.core import coring, serdering
 
 class Event(SAD):
@@ -140,7 +139,6 @@ class RotationEvent(Event):
         Returns:
             List[PublicKey]: The new current public keys.
         """
-        from .crypto import PublicKey
         # KERI stores the new current keys in the rotation event's verfers
         verfers = self._serder.verfers
         return [PublicKey(v.qb64) for v in verfers]

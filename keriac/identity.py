@@ -1,10 +1,9 @@
 from typing import Union, List, Any, TYPE_CHECKING
 from keri.app import habbing
 
-from .base import AID
-from .event import Event
+from keriac.logbook.entries.event import Event
+from .domain import AID, PublicKey, Signature
 from .logbook.keys import KeyLog
-from .crypto import PublicKey, PrivateKey, Signature
 
 if TYPE_CHECKING:
     from .logbook.transactions import TransactionLog
@@ -142,7 +141,6 @@ class Identity:
         if not self.is_controller:
             raise ValueError("Cannot sign with Remote Identity (no private keys)")
         
-        from .crypto import Signature
         # Use Hab's sign method which returns a list of Sigers
         sigers = self._hab.sign(ser=data)
         # Return the first signature
@@ -255,7 +253,6 @@ class Identity:
         Returns:
             Event: The rotation event containing the key change.
         """
-        from .types import Seal
         # Prepare seal data
         seals = []
         if data is not None:

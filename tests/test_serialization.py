@@ -1,6 +1,6 @@
 import pytest
-from keriac import SAID, Event, ACDC, pack, unpack, Identity, PublicKey, Signature, DataRecord
-from keriac.event import InceptionEvent, InteractionEvent
+from keriac import SAID, Event, pack, unpack, Identity, PublicKey, Signature, DataRecord
+from keriac.logbook.entries.event import InteractionEvent
 
 def test_said_serialization():
     # Use a valid KERI SAID (Blake3-256 is 'E')
