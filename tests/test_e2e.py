@@ -309,3 +309,159 @@ class TestAliceSendsThankYouToBob:
         alice_from_bob.close()
         alice.close()
         bob.close()
+
+    def test_portability_and_anchoring(self):
+        """
+        ACT 10: Portability — Shipping the Trust Chain in a File
+        ========================================================
+        
+        Alice wants to send her 'credentials package' to Charlie 
+        as a single .cesr file. Charlie will read the file from disk,
+        unpack it, verify everything, and anchor the ACDC.
+        """
+        import os
+        from keriac.transport import pack, unpack
+        from keriac.domain import Signature, PublicKey
+
+        alice = Identity(name="alice_portability", temp=True)
+        charlie = Identity(name="charlie_portability", temp=True)
+        
+        # 1. Alice creates trust infrastructure
+        log = alice.create_transaction_log(name="charity_log")
+        
+        # 2. Alice issues ACDC for Charlie
+        award_data = {"score": "A+", "subject": "KERI Portability"}
+        acdc = alice.issue_credential(
+            data=award_data,
+            transaction_log=log,
+            recipient=charlie.aid,
+            schema="EAwardSchema"
+        )
+        
+        # 3. Alice signs the ACDC directly
+        # This provides a "direct proof" in addition to the "chained proof" (KEL anchor)
+        sig = acdc.sign(alice)
+
+        # 4. Alice bundles everything for Charlie
+        # We pack: KEL (inception), TEL (inception + issuance), ACDC, and its Signature
+        kel_events = list(alice.kel) 
+        tel_events = list(log.tel)
+        
+        bundle = pack([
+            *kel_events,     # Alice's KEL
+            *tel_events,     # Registry TEL
+            acdc,            # The ACDC
+            sig              # The ACDC's direct signature
+        ])
+        
+        # 5. Save to file system
+        file_path = "alice_to_charlie.cesr"
+        with open(file_path, "wb") as f:
+            f.write(bundle)
+            
+        try:
+            # 6. Charlie reads the file
+            assert os.path.exists(file_path)
+            with open(file_path, "rb") as f:
+                received_bundle = f.read()
+                
+            # 7. Charlie unpacks the stream
+            objects = unpack(received_bundle)
+            
+            # 8. Charlie verifies the pieces
+            # Verify ACDC integrity (SAID check)
+            received_acdc = next(obj for obj in objects if isinstance(obj, Credential))
+            assert received_acdc.said == acdc.said
+            assert received_acdc.verify() is True
+
+            # Verify the direct signature on the ACDC
+            # Charlie finds the signature in the objects list
+            received_sig = next(obj for obj in objects if isinstance(obj, Signature))
+            
+            # Charlie uses Alice's public key (resolved from KEL) to verify the signature
+            alice_pub = alice.public_key 
+            assert received_acdc.verify_signature(received_sig, alice_pub) is True
+            
+            # 9. Charlie anchors the ACDC in his own KEL to acknowledge receipt
+            charlie.anchor(received_acdc)
+            assert charlie.kel.is_anchored(received_acdc.said) is True
+            
+        finally:
+            alice.close()
+            charlie.close()
+
+    def test_cbor_portability(self):
+        """
+        ACT 11: Binary Efficiency — Shipping the Trust Chain in CBOR
+        ============================================================
+        
+        Same as ACT 10, but everything is encoded in CBOR to save space.
+        This demonstrates keriac's ability to handle mixed binary streams.
+        """
+        import os
+        from keriac.transport import pack, unpack
+        from keriac.domain import Signature
+        from keriac.documents.credential import Credential
+
+        # 1. Alice creates identity with CBOR default
+        alice = Identity(name="alice_cbor", temp=True, kind="CBOR")
+        charlie = Identity(name="charlie_cbor", temp=True)
+        
+        # 2. Alice creates trust infrastructure using CBOR
+        log = alice.create_transaction_log(name="charity_log_cbor", kind="CBOR")
+        
+        # 3. Alice issues ACDC for Charlie in CBOR
+        award_data = {"score": "A+", "subject": "CBOR KERI"}
+        acdc = alice.issue_credential(
+            data=award_data,
+            transaction_log=log,
+            recipient=charlie.aid,
+            schema="EAwardSchema",
+            kind="CBOR"
+        )
+        
+        # 4. Alice signs the ACDC
+        sig = acdc.sign(alice)
+
+        # 5. Alice bundles everything (All CBOR)
+        kel_events = list(alice.kel) 
+        tel_events = list(log.tel)
+        
+        bundle = pack([
+            *kel_events,     # Alice's KEL (CBOR)
+            *tel_events,     # Registry TEL (CBOR)
+            acdc,            # The ACDC (CBOR)
+            sig              # The Signature
+        ])
+        
+        # Verify the bundle contains mixed content
+        assert b"CBOR" in bundle
+        assert b"JSON" in bundle  # Alice's KEL is still JSON by keripy default
+        
+        # 6. Save to file
+        file_path = "alice_cbor.cesr"
+        with open(file_path, "wb") as f:
+            f.write(bundle)
+            
+        try:
+            # 7. Charlie reads and unpacks
+            with open(file_path, "rb") as f:
+                received_bundle = f.read()
+                
+            objects = unpack(received_bundle)
+            
+            # 8. Charlie verifies
+            received_acdc = next(obj for obj in objects if isinstance(obj, Credential))
+            assert received_acdc.said == acdc.said
+            # The ACDC should internally use CBOR
+            assert received_acdc.data["v"].startswith("ACDC10CBOR")
+            
+            # Verify signature using Alice's key
+            received_sig = next(obj for obj in objects if isinstance(obj, Signature))
+            assert received_acdc.verify_signature(received_sig, alice.public_key) is True
+            
+        finally:
+            # if os.path.exists(file_path):
+            #     os.remove(file_path)
+            alice.close()
+            charlie.close()

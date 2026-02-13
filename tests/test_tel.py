@@ -1,5 +1,5 @@
 import pytest
-from keriac import Identity, unpack, Event
+from keriac.agents import Identity
 from keriac.logbook.transactions import TransactionLog
 
 def test_registry_lifecycle():
@@ -14,7 +14,7 @@ def test_registry_lifecycle():
     # 2. Create Transaction Log
     log = alice.create_transaction_log(name="test_log")
     assert isinstance(log, TransactionLog)
-    assert log.reg_k is not None
+    assert log.log_aid is not None
     
     # 3. Verify Anchoring in Alice's KEL
     alice_kel = list(alice.kel)
@@ -28,7 +28,7 @@ def test_registry_lifecycle():
     assert len(anchors) == 1
     seal = anchors[0]
     # The seal for a registry inception is usually: {i: reg_k, s: 0, d: said}
-    assert seal['i'] == log.reg_k
+    assert seal['i'] == log.log_aid
     assert seal['s'] == '0'
 
     alice.close()
@@ -59,8 +59,7 @@ def test_credential_issuance_flow():
         
         # Verify Credential Properties
         assert credential.issuer == alice.aid
-        assert credential.transaction_log.reg_k == log.reg_k
-        assert credential.is_revoked() is False
+        assert log.status(credential) != "revoked"
         
         # Verify Issuance Anchor in KEL
         alice_kel = list(alice.kel)
@@ -73,7 +72,7 @@ def test_credential_issuance_flow():
         anchors = iss_anchor.anchors
         assert len(anchors) == 1
         seal = anchors[0]
-        assert seal['i'] == log.reg_k
+        assert seal['i'] == log.log_aid
         # issuance sn might depend on registry events, checked loosely here
         assert 's' in seal
         assert 'd' in seal
@@ -101,8 +100,8 @@ def test_revocation_flow():
     )
     
     # Revoke
-    credential.revoke()
-    
+    alice.revoke_credential(credential, log)
+
     # Verify Revocation Anchor in KEL
     alice_kel = list(alice.kel)
     # Expected: 1. Inception, 2. Reg Anchor, 3. Iss Anchor, 4. Rev Anchor

@@ -57,6 +57,7 @@ class Credential(SAD): # ACDC
                status: Optional[str] = None,
                source: Optional[Union[dict, list]] = None,
                rules: Optional[Union[dict, list]] = None,
+               kind: str = "JSON",
                **kwargs) -> "Credential":
         """
         Create a new ACDC credential.
@@ -69,6 +70,7 @@ class Credential(SAD): # ACDC
             status: Optional registry AID for status.
             source: Optional cryptographic source seals.
             rules: Optional credential rules.
+            kind: Serialization kind (JSON, CBOR, MGPK).
             **kwargs: Additional fields for proving.credential.
             
         Returns:
@@ -85,6 +87,7 @@ class Credential(SAD): # ACDC
             status=status,
             source=source,
             rules=rules,
+            kind=kind,
             **kwargs
         )
         return cls(serder)

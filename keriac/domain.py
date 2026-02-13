@@ -374,15 +374,17 @@ class DataRecord(SAD):
     Can be used for any dictionary that contains a SAID.
     """
 
-    def __init__(self, data_or_raw: Union[SADDict, bytes, str, 'Serder']):
+    def __init__(self, data_or_raw: Union[SADDict, bytes, str, 'Serder'], kind: str = "JSON"):
         """
         Initialize a DataRecord.
         
         Args:
             data_or_raw: A dictionary, bytes, or KERI Serder.
+            kind: Serialization kind (JSON, CBOR, MGPK). Default is JSON.
         """
         from keri.core import coring
         from keri.core.serdering import Serder
+        from keri.kering import Kinds
         
         if isinstance(data_or_raw, dict):
             # Ensure it has SAID fields using saidify
@@ -392,11 +394,8 @@ class DataRecord(SAD):
                 label = '$id'
 
             # KERI Serder requires version string 'v' to be present.
-            # Saider.saidify/sizeify expects it to be the first field for JSON.
-            # We use KERI protocol but add 't' (ilk) to satisfy Serder requirement.
-            
             # 1. Handle version string and field order
-            v_val = sad.pop(Fields.VERSION, "KERI10JSON000000_")
+            v_val = sad.pop(Fields.VERSION, f"KERI10{kind}000000_")
             # Reset size to 000000 to let Serder calculate it
             if len(v_val) >= 16:
                 v_val = v_val[:10] + "000000" + v_val[16:]
@@ -413,19 +412,26 @@ class DataRecord(SAD):
             if not sad.get(label):
                 _, sad = coring.Saider.saidify(sad=sad, label=label)
             
-            import json
             # Manual sizeification to avoid Serder's strictness while ensuring correct version string and size.
-            # We assume JSON serialization here.
-            # 1. First, compute the current size with the 000000 placeholder
-            raw = json.dumps(sad, separators=(',', ':')).encode("utf-8")
+            if kind == Kinds.json:
+                import json
+                raw = json.dumps(sad, separators=(',', ':')).encode("utf-8")
+            elif kind == Kinds.cbor:
+                import cbor2
+                raw = cbor2.dumps(sad)
+            elif kind == Kinds.mgpk:
+                import msgpack
+                raw = msgpack.dumps(sad)
+            else:
+                raise ValueError(f"Unsupported serialization kind: {kind}")
+
             size = len(raw)
-            # 2. Update the version string with the correct hex size
+            # Update the version string with the correct hex size
             v_val = sad[Fields.VERSION]
             v_val = v_val[:10] + f"{size:06x}" + v_val[16:]
             sad[Fields.VERSION] = v_val
             
             # Use verify=False to allow arbitrary SADs that are not standard KERI messages.
-            # We don't use makify=True here because it enforces strict field validation.
             self._serder = Serder(sad=sad, verify=False)
         elif isinstance(data_or_raw, (bytes, bytearray, memoryview)):
             self._serder = Serder(raw=bytes(data_or_raw))

@@ -32,10 +32,12 @@ class Identity:
             temp (bool, optional): Whether to use temporary storage (default True).
             **kwargs: Additional parameters passed to the underlying Hab.
         """
+        v_kind = kwargs.pop("kind", "JSON")
         # We'll use Habery to manage the habitats.
         self._hby = habbing.Habery(name=name, temp=temp, salt=salt, bran=bran, tier=tier, base=base)
         self._hab = self._hby.makeHab(name=name, **kwargs)
         self._aid = None  # Explicit AID override (for Remote identities)
+        self.kind = v_kind
 
     @property
     def aid(self) -> AID:
@@ -278,17 +280,18 @@ class Identity:
         )
         return Event(raw)
 
-    def create_transaction_log(self, name: str) -> 'TransactionLog':
+    def create_transaction_log(self, name: str, kind: str = "JSON") -> 'TransactionLog':
         """
         Create a new Transaction Log (VDR) anchored to this identity.
 
         Args:
             name (str): The alias for the new transaction log.
+            kind (str): Serialization kind (JSON, CBOR, MGPK).
 
         Returns:
             TransactionLog: The newly created and committed transaction log.
         """
-        log = TransactionLog(issuer_aid=self.aid, name=name)
+        log = TransactionLog(issuer_aid=self.aid, name=name, kind=kind)
 
         seal = log.commit()
 
@@ -300,7 +303,7 @@ class Identity:
         return log
 
 
-    def issue_credential(self, data: dict, transaction_log: TransactionLog, schema: Any = None, recipient: Any = None, **kwargs) -> 'Credential':
+    def issue_credential(self, data: dict, transaction_log: TransactionLog, schema: Any = None, recipient: Any = None, kind: str = "JSON", **kwargs) -> 'Credential':
         """
         Issue a credential using the provided transaction log.
 
@@ -314,6 +317,7 @@ class Identity:
             transaction_log (TransactionLog): The transaction log to issue against.
             schema (Schema, optional): The schema for the credential.
             recipient (str or AID, optional): The recipient's AID.
+            kind (str): Serialization kind (JSON, CBOR, MGPK).
             **kwargs: Additional arguments for ACDC creation.
 
         Returns:
@@ -327,6 +331,7 @@ class Identity:
             attributes=data,
             recipient=str(recipient) if recipient else None,
             status=str(transaction_log.log_aid),
+            kind=kind,
             **kwargs
         )
 

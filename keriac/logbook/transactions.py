@@ -16,18 +16,27 @@ class TransactionLog:
     This class abstracts the complex KERI VDR logic into a simple API.
     """
 
-    def __init__(self, issuer_aid: AID, name: str):
+    def __init__(self, issuer_aid: AID, name: str, kind: str = "JSON"):
         """
         Initialize a TransactionLog wrapper.
 
         Args:
             issuer (Identity): The Identity that controls this registry.
             name (str): Human-readable alias for this registry.
+            kind (str): Serialization kind (JSON, CBOR, MGPK).
         """
         self.issuer_aid = issuer_aid
         self.name = name
+        self.kind = kind
         self.log_aid = None # Assigned after commit()
+        self._events = [] # Persisted events
         self._revoked_credentials = set() # In-memory mock DB
+
+    @property
+    def tel(self) -> list:
+        """Access the Transaction Event Log (TEL) for this registry."""
+        from keriac.logbook.entries.event import Event
+        return [Event(raw) for raw in self._events]
 
     def commit(self) -> Seal:
         """
@@ -41,9 +50,10 @@ class TransactionLog:
         # 1. Generate vcp event
         # 'pre' is the issuer's identifier prefix
         # We assume a default configuration for now (no backers logic exposed yet)
-        serder = eventing.incept(pre=self.issuer_aid)
+        serder = eventing.incept(pre=self.issuer_aid, kind=self.kind)
         
         self.log_aid = serder.pre
+        self._events.append(serder.raw)
 
         return {
             "i": self.log_aid,
@@ -71,8 +81,10 @@ class TransactionLog:
         # vcdig is the SAID of the credential
         serder = eventing.issue(
             vcdig=str(credential.said),
-            regk=self.log_aid
+            regk=self.log_aid,
+            kind=self.kind
         )
+        self._events.append(serder.raw)
 
         return {
             "i": self.log_aid,
@@ -118,8 +130,10 @@ class TransactionLog:
         serder = eventing.revoke(
             vcdig=str(credential.said),
             regk=self.log_aid,
-            dig=prev_dig
+            dig=prev_dig,
+            kind=self.kind
         )
+        self._events.append(serder.raw)
 
         # Mark as revoked in memory
         self._revoked_credentials.add(str(credential.said))

@@ -56,6 +56,7 @@ def unpack(raw: bytes, cls: Type[T] = None) -> List[Union[T, Serializable]]:
             continue
         
         reaped = False
+        cold = sniff(ims)
         if cold == Colds.msg:
             # Backup ims because reap might partially consume it or modify it on failure
             ims_backup = bytes(ims)
@@ -75,17 +76,31 @@ def unpack(raw: bytes, cls: Type[T] = None) -> List[Union[T, Serializable]]:
                 # Fallback: try to see if it's a valid DataRecord even if reap failed
                 # This handles arbitrary SADs that have a version string but aren't standard KERI messages.
                 try:
-                    import json
                     import re
-                    # Sniff for version string to determine size. Pattern matches KERI/ACDC version strings.
+                    # Sniff for version string to determine size and kind.
+                    # Pattern matches KERI/ACDC version strings: PROTO major minor KIND size terminator
+                    # e.g. KERI10JSON00012b_ or KERI10CBOR0000ed_
                     # Capture group 2 is the hex size.
-                    match = re.search(rb'"v"\s*:\s*"([A-Z0-9]{4}[0-9A-F]{2}[A-Z]{4}([0-9A-F]{6})_)"', ims_backup[:128])
+                    match = re.search(rb'([A-Z]{4}[0-9a-fA-F]{2}([A-Z]{4})([0-9a-fA-F]{6})[_])', ims_backup[:128])
                     if match:
-                        size_str = match.group(2).decode("utf-8")
+                        kind_str = match.group(2).decode("utf-8")
+                        size_str = match.group(3).decode("utf-8")
                         size = int(size_str, 16)
                         if size > 0 and size <= len(ims_backup):
-                            sad_data = json.loads(ims_backup[:size])
-                            results.append(DataRecord(sad_data))
+                            raw_data = ims_backup[:size]
+                            if kind_str == "JSON":
+                                import json
+                                sad_data = json.loads(raw_data)
+                            elif kind_str == "CBOR":
+                                import cbor2
+                                sad_data = cbor2.loads(raw_data)
+                            elif kind_str == "MGPK":
+                                import msgpack
+                                sad_data = msgpack.loads(raw_data)
+                            else:
+                                raise ValueError(f"Unknown kind {kind_str}")
+                                
+                            results.append(DataRecord(sad_data, kind=kind_str))
                             del ims[:size]
                             reaped = True
                 except Exception:
