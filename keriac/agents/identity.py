@@ -35,7 +35,12 @@ class Identity:
         v_kind = kwargs.pop("kind", "JSON")
         # We'll use Habery to manage the habitats.
         self._hby = habbing.Habery(name=name, temp=temp, salt=salt, bran=bran, tier=tier, base=base)
-        self._hab = self._hby.makeHab(name=name, **kwargs)
+        
+        # Reopen existing if available, otherwise create new
+        self._hab = self._hby.habByName(name=name)
+        if not self._hab:
+            self._hab = self._hby.makeHab(name=name, **kwargs)
+            
         self._aid = None  # Explicit AID override (for Remote identities)
         self.kind = v_kind
 

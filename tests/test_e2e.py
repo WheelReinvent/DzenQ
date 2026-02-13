@@ -461,7 +461,76 @@ class TestAliceSendsThankYouToBob:
             assert received_acdc.verify_signature(received_sig, alice.public_key) is True
             
         finally:
-            # if os.path.exists(file_path):
-            #     os.remove(file_path)
             alice.close()
             charlie.close()
+
+    def test_accept_script_idempotency(self):
+        """
+        ACT 12: Idempotent Acceptance — Verify the accept.py script logic.
+        """
+        import os
+        import shutil
+        import uuid
+        from keri.core import Salter
+        from keriac.transport import pack
+        from accept import accept_acdc
+
+        # 1. Setup unique environment for this test run
+        run_id = uuid.uuid4().hex[:8]
+        base_dir = f"test_run_{run_id}"
+        if os.path.exists(base_dir):
+            shutil.rmtree(base_dir)
+            
+        # We use fixed salts to ensure deterministic reopening and avoid manager collisions
+        alice_salt = Salter(raw=b'alice_salt_01234').qb64
+        charlie_salt = Salter(raw=b'charlie_salt_567').qb64
+            
+        alice = Identity(name="alice_acc", base=base_dir, salt=alice_salt, temp=False)
+        charlie = Identity(name="charlie_acc", base=base_dir, salt=charlie_salt, temp=False)
+
+        try:
+            # 2. Alice issues ACDC for Charlie
+            log = alice.create_transaction_log(name="test_log")
+            acdc = alice.issue_credential(
+                data={"score": "A"},
+                transaction_log=log,
+                recipient=charlie.aid,
+                schema="ETest"
+            )
+            
+            # 3. Create bundle
+            bundle = pack([*list(alice.kel), *list(log.tel), acdc])
+            file_path = f"test_accept_{run_id}.cesr"
+            with open(file_path, "wb") as f:
+                f.write(bundle)
+
+            # 4. First acceptance
+            charlie.close()
+            
+            # The script should automatically find 'charlie_acc' via the recipient AID
+            accept_acdc(file_path, environment_name="charlie_acc", base=base_dir, temp=False, salt=charlie_salt)
+            
+            # Reopen Charlie to verify
+            charlie = Identity(name="charlie_acc", base=base_dir, salt=charlie_salt, temp=False)
+            assert charlie.kel.is_anchored(acdc.said) is True
+
+            # 5. Second acceptance: Idempotent
+            charlie.close()
+            accept_acdc(file_path, environment_name="charlie_acc", base=base_dir, temp=False, salt=charlie_salt)
+            
+            # Reopen Charlie to verify still anchored
+            charlie = Identity(name="charlie_acc", base=base_dir, salt=charlie_salt, temp=False)
+            assert charlie.kel.is_anchored(acdc.said) is True
+
+        finally:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            
+            alice.close()
+            charlie.close()
+            
+            if os.path.exists(base_dir):
+                try:
+                    shutil.rmtree(base_dir)
+                except:
+                    pass
