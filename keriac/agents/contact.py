@@ -3,7 +3,8 @@ Discovery module for OOBI (Out-of-Band Introduction) support.
 
 Provides the Card abstraction for discovering and resolving remote Identities.
 """
-from typing import Optional, Self
+from typing import Optional
+from typing_extensions import Self
 import requests
 from keri.core import eventing
 from keri.app import habbing
@@ -32,24 +33,15 @@ class Card:
     
     def resolve(self, name: Optional[str] = None, temp: bool = True) -> Identity:
         """
-        Resolve this Card to obtain a Remote Identity.
-        
-        This method:
-        1. Fetches the KEL from the OOBI URL.
-        2. Validates and ingests the KEL.
-        3. Returns a Remote Identity instance (read-only, no private keys).
+        Resolve this Card to obtain a Remote Identity View.
         
         Args:
             name (str, optional): Alias for the resolved identity.
             temp (bool): Whether to use temporary storage.
             
         Returns:
-            Identity: A Remote Identity instance.
-            
-        Raises:
-            ValueError: If the OOBI URL is invalid or KEL cannot be fetched.
+            Identity: A Remote Identity View instance.
         """
-        
         # 1. Fetch KEL from URL
         try:
             response = requests.get(self.url, timeout=10)
@@ -62,55 +54,9 @@ class Card:
         if 'application/json+cesr' not in content_type:
             raise ValueError(f"Invalid OOBI response content type: {content_type}")
         
-        # 3. Create a temporary database environment
-        hby = habbing.Habery(name=name or "oobi_resolver", temp=temp)
-        
-        # 4. Parse the KEL using Kevery in lax mode
-        kvy = eventing.Kevery(db=hby.db, lax=True, local=False)
-        
-        # 5. Process the messagized KEL event(s)
-        # The response contains: event_bytes + counter + signature_bytes
-        aid = None
-        try:
-            ims = bytearray(response.content)
-            
-            while ims:
-                # Deserialize the event
-                serder = serdering.SerderKERI(raw=ims)
-                del ims[:serder.size]
-                
-                # Track the AID from the first event
-                if aid is None:
-                    aid = serder.pre
-                
-                # Parse the counter (tells us how many signatures follow)
-                counter = Counter(qb64b=ims)
-                del ims[:counter.fullSize]
-                
-                # Extract the indexed signatures using strip=True
-                # (keripy idiom: strip=True auto-deletes parsed bytes from bytearray)
-                sigers = []
-                for _ in range(counter.count):
-                    siger = Siger(qb64b=ims, strip=True)
-                    sigers.append(siger)
-                
-                # Process the event with its signatures
-                kvy.processEvent(serder=serder, sigers=sigers)
-                
-        except Exception as e:
-            raise ValueError(f"Failed to process KEL from OOBI: {e}")
-        
-        # 6. Verify KEL was ingested
-        if aid is None or aid not in hby.db.kevers:
-            raise ValueError("No KEL found in OOBI response")
-        
-        # 7. Create a Remote Identity
-        identity = Identity.__new__(Identity)
-        identity._hby = hby
-        identity._hab = None  # No Hab means Remote/Observer mode
-        identity._aid = aid
-        
-        return identity
+        # 3. Use Identity.observe to process the content and return a View
+        # We pass the raw content (messagized KEL)
+        return Identity.observe(response.content)
     
     @staticmethod
     def issue(identity: Identity, role: str = "controller") -> Self:

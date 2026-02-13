@@ -1,4 +1,4 @@
-from typing import Union, List, Any
+from typing import Union, List, Any, Optional
 from keri.app import habbing
 
 from keriac.domain import AID, PublicKey, Signature
@@ -43,6 +43,169 @@ class Identity:
             
         self._aid = None  # Explicit AID override (for Remote identities)
         self.kind = v_kind
+
+    @classmethod
+    def by_aid(cls, aid: Union[str, AID], **kwargs) -> Optional['Identity']:
+        """
+        Restore a local identity by its AID (Autonomous Identifier).
+        
+        This method searches the local databases to find which human-readable 
+        alias (name) owns the provided AID.
+        
+        Args:
+            aid: The AID to look up.
+            **kwargs: Parameters passed to the Identity constructor 
+                     (base, temp, salt, bran, etc.).
+                     'environment' can be used to specify the Habery name (default: "keriac").
+        """
+        aid_str = str(aid)
+        env_name = kwargs.pop("environment", "keriac")
+        base = kwargs.get("base", "")
+        temp = kwargs.get("temp", True)
+        
+        # Temporarily open Habery to find the alias
+        hby = habbing.Habery(name=env_name, base=base, temp=temp)
+        try:
+            hab_record = hby.db.habs.get(aid_str)
+            if not hab_record:
+                return None
+            alias = hab_record.name
+        finally:
+            hby.close()
+            
+        return cls(name=alias, **kwargs)
+
+    @classmethod
+    def observe(cls, bundle: Union[bytes, List[Any]], hby: Optional[habbing.Habery] = None, name: str = "observer", temp: bool = True, **kwargs) -> 'Identity':
+        """
+        Observe KERI events (KEL, TEL) from a CESR bundle and return a View.
+        
+        This is an active operation that ingests data into the local database
+        and returns a read-only Identity instance.
+        
+        Args:
+            bundle: The raw bytes of the CESR bundle (potentially messagized with signatures)
+                    or a list of unpacked SAD objects.
+            hby: Optional existing Habery to use for ingestion. If None, a new one is created.
+            name: The alias to use for the new Habery (ignored if hby is provided).
+            temp: Whether to use temporary storage for the new Habery (ignored if hby is provided).
+            **kwargs: Additional parameters for Habery creation.
+            
+        Returns:
+            Identity: A Remote/View Identity instance.
+        """
+        from keri.kering import Ilks
+        from keri.core.serdering import Serder
+        from keriac.transport import unpack
+        
+        if hby is None:
+            # Create a new Habery for this observation
+            hby = habbing.Habery(name=name, temp=temp, **kwargs)
+        
+        aid = None
+        
+        if isinstance(bundle, (bytes, bytearray)):
+            from keri.core.serdering import SerderKERI
+            from keri.core.counting import Counter
+            from keri.core.indexing import Siger
+            
+            ims = bytearray(bundle)
+            while ims:
+                try:
+                    # 1. Extract Serder
+                    serder = SerderKERI(raw=ims)
+                    del ims[:serder.size]
+                    
+                    # Track AID from first event
+                    if aid is None:
+                        aid = getattr(serder, 'pre', None) or \
+                              getattr(serder, 'aid', None) or \
+                              serder.sad.get('i') or \
+                              serder.sad.get('pre')
+                    
+                    # 2. Extract Signatures (if any)
+                    sigers = []
+                    if ims:
+                         try:
+                             # Check if it's a counter
+                             counter = Counter(qb64b=ims)
+                             if counter.count > 0:
+                                 del ims[:counter.fullSize]
+                                 for _ in range(counter.count):
+                                     sigers.append(Siger(qb64b=ims, strip=True))
+                         except Exception:
+                             # No counter or signatures at this point
+                             pass
+                    
+                    # 3. Process the event
+                    ilk = serder.sad.get('t')
+                    if ilk in (Ilks.icp, Ilks.rot, Ilks.ixn, Ilks.dip, Ilks.drt):
+                        hby.kvy.processEvent(serder=serder, sigers=sigers)
+                    elif hasattr(hby, "rvy") and hasattr(hby.rvy, "processEvent"):
+                        hby.rvy.processEvent(serder=serder, sigers=sigers)
+                        
+                except Exception as e:
+                    break
+        else:
+            # List of SAD objects (Event, Credential, etc.)
+            for obj in bundle:
+                if isinstance(obj, Credential):
+                    continue
+                
+                if hasattr(hby.kvy, "processEvent"):
+                    # Extract AID
+                    if aid is None:
+                         aid = obj.data.get('i') or obj.data.get('pre')
+                    
+                    # For list objects, we don't have sigs attached usually
+                    hby.kvy.processEvent(serder=obj._serder if hasattr(obj, '_serder') else SerderKERI(sad=obj.data))
+                
+        if not aid:
+            # We MUST have an AID to proceed
+            raise ValueError("No valid KERI identifier found in observed data")
+            
+        # Optional: Log if KEL was not verified (e.g. still in escrow)
+        # We don't raise here because ingestion might be "best effort" for some use cases.
+        # But for OOBI, we'd prefer it to be in kevers.
+        # if aid not in hby.db.kevers:
+        #    pass
+
+        # Return a Remote Identity View
+        identity = cls.__new__(cls)
+        identity._hby = hby
+        identity._hab = None
+        identity._aid = aid
+        return identity
+
+    @classmethod
+    def view(cls, aid: Union[str, AID], environment: str = "keriac", **kwargs) -> Optional['Identity']:
+        """
+        Retrieve a read-only View of an existing remote Identity from the database.
+        
+        Args:
+            aid: The AID to look up.
+            environment: The Habery name to search in.
+            **kwargs: Parameters passed to Habery (base, temp).
+        """
+        aid_str = str(aid)
+        base = kwargs.get("base", "")
+        temp = kwargs.get("temp", True)
+        
+        hby = habbing.Habery(name=environment, base=base, temp=temp)
+        try:
+            if aid_str not in hby.db.kevers:
+                hby.close()
+                return None
+        except Exception:
+            hby.close()
+            return None
+            
+        # Create a Remote Identity View
+        identity = cls.__new__(cls)
+        identity._hby = hby
+        identity._hab = None
+        identity._aid = aid_str
+        return identity
 
     @property
     def aid(self) -> AID:

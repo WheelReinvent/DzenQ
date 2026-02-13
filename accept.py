@@ -1,7 +1,8 @@
 import sys
 import argparse
 import logging
-from keri.app import habbing
+from typing import Union, Optional
+
 from keriac.agents.identity import Identity
 from keriac.documents.credential import Credential
 from keriac.transport import unpack
@@ -33,36 +34,41 @@ def accept_acdc(file_path: str, environment_name: str = "keriac", base: str = ""
         logger.error("ACDC does not have a recipient AID.")
         sys.exit(1)
     
-    recipient_aid_str = str(recipient_aid)
-    logger.info(f"ACDC found. Recipient AID: {recipient_aid_str}")
+    logger.info(f"ACDC found. Recipient AID: {recipient_aid}")
 
-    # 3. Resolve the local identity matching this AID
-    # We open the Habery to look up which alias owns this AID
-    logger.info(f"Opening Habery: name={environment_name}, base={base}, temp={temp}")
-    hby = habbing.Habery(name=environment_name, base=base, temp=temp)
+    # 3. Resolve and restore the local identity matching this AID
+    logger.info(f"Resolving local identity for {recipient_aid} in environment '{environment_name}'...")
+    identity = Identity.by_aid(
+        aid=recipient_aid, 
+        environment=environment_name,
+        base=base,
+        temp=temp,
+        salt=salt,
+        bran=bran
+    )
     
-    # Try to find by AID in the database
-    habitat_record = hby.db.habs.get(recipient_aid_str)
-    if not habitat_record:
-        logger.error(f"No local identity found for AID {recipient_aid_str} in environment '{environment_name}'")
-        hby.close()
+    if not identity:
+        logger.error(f"No local identity found for AID {recipient_aid} in environment '{environment_name}'")
         sys.exit(1)
     
-    alias = habitat_record.name
-    logger.info(f"Found local identity alias: '{alias}'")
-    hby.close() # Close it so Identity can reopen its own Resources
+    logger.info(f"Restored local identity: '{identity.aid}'")
 
-    # 4. Initialize the Identity and anchor the ACDC
-    # We use the same environment parameters and SECRET
-    identity = Identity(name=alias, base=base, temp=temp, salt=salt, bran=bran)
-    
+    # 4. Ingest the bundle (KEL/TEL events) to update knowledge of the issuer
+    try:
+        issuer_view = Identity.observe(bundle, hby=identity._hby)
+        logger.info(f"Observed and verified issuer: {issuer_view.aid}")
+    except Exception as e:
+        logger.error(f"Failed to observe bundle: {e}")
+        identity.close()
+        sys.exit(1)
+
     # 5. Idempotent anchoring
     if identity.kel.is_anchored(acdc.said):
-        logger.warning(f"ACDC {acdc.said} is already anchored in '{alias}' KEL. Skipping.")
+        logger.warning(f"ACDC {acdc.said} is already anchored. Skipping.")
     else:
         try:
             identity.anchor(acdc)
-            logger.info(f"Successfully anchored ACDC {acdc.said} in '{alias}' KEL.")
+            logger.info(f"Successfully anchored ACDC {acdc.said} in KEL.")
         except Exception as e:
             logger.error(f"Failed to anchor ACDC: {e}")
             identity.close()

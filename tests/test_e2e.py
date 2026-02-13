@@ -505,22 +505,32 @@ class TestAliceSendsThankYouToBob:
                 f.write(bundle)
 
             # 4. First acceptance
+            print("DEBUG TEST: Closing charlie before script call")
             charlie.close()
             
-            # The script should automatically find 'charlie_acc' via the recipient AID
+            # The script should automatically find 'charlie_acc' via the recipient AID.
+            # It will also 'ingest' Alice's trust chain from the bundle.
+            print("DEBUG TEST: Calling accept_acdc script logic")
             accept_acdc(file_path, environment_name="charlie_acc", base=base_dir, temp=False, salt=charlie_salt)
+            print("DEBUG TEST: accept_acdc finished")
             
             # Reopen Charlie to verify
+            print("DEBUG TEST: Reopening charlie for verification")
             charlie = Identity(name="charlie_acc", base=base_dir, salt=charlie_salt, temp=False)
             assert charlie.kel.is_anchored(acdc.said) is True
+            print("DEBUG TEST: First acceptance verified")
 
             # 5. Second acceptance: Idempotent
+            print("DEBUG TEST: Closing charlie for second call")
             charlie.close()
+            print("DEBUG TEST: Calling accept_acdc second time")
             accept_acdc(file_path, environment_name="charlie_acc", base=base_dir, temp=False, salt=charlie_salt)
+            print("DEBUG TEST: Second call finished")
             
             # Reopen Charlie to verify still anchored
             charlie = Identity(name="charlie_acc", base=base_dir, salt=charlie_salt, temp=False)
             assert charlie.kel.is_anchored(acdc.said) is True
+            print("DEBUG TEST: Second acceptance verified")
 
         finally:
             if os.path.exists(file_path):

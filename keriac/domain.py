@@ -1,6 +1,7 @@
 import json
 from abc import ABC, abstractmethod
-from typing import Optional, TypedDict, Dict, Any, Self
+from typing import Optional, TypedDict, Dict, Any
+from typing_extensions import Self
 
 from keri.core.coring import Saider
 from keri.core.signing import Signer as KeriSigner, Siger as KeriSiger
