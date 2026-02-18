@@ -5,7 +5,7 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 # --- CONFIG ---
-BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"  # від @BotFather
+BOT_TOKEN = os.environ.get("BOT_TOKEN") # від @BotFather
 
 # --- DATABASE ---
 def init_db():
