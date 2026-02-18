@@ -6,7 +6,7 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 # --- CONFIG ---
-BOT_TOKEN = os.environ.get("BOT_TOKEN") # від @BotFather
+BOT_TOKEN = os.environ["BOT_TOKEN"]
 
 # --- DATABASE ---
 def init_db():
@@ -85,36 +85,47 @@ async def handle_mention(update: Update, context: ContextTypes.DEFAULT_TYPE):
     from_user = message.from_user
     text = message.text or ""
 
-    # Шукаємо згадки інших юзерів (не бота)
+    bot_username = (await context.bot.get_me()).username
+
+    # Збираємо всі mentions
+    mentions = []
     for entity in message.entities:
         if entity.type == "mention":
-            mentioned_username = text[entity.offset + 1:entity.offset + entity.length]  # без @
+            username = text[entity.offset + 1:entity.offset + entity.length]
+            mentions.append(username)
 
-            # Ігноруємо якщо дякує сам собі
-            if mentioned_username == from_user.username:
-                continue
+    # Якщо немає бота в mentions — ігноруємо
+    if bot_username not in mentions:
+        return
 
-            # Ігноруємо самого бота
-            if mentioned_username == context.bot.username:
-                continue
+    for mentioned_username in mentions:
+        # Ігноруємо бота
+        if mentioned_username == bot_username:
+            continue
 
-            # Отримуємо текст подяки (все крім @mention)
-            thank_text = text.replace(f"@{mentioned_username}", "").replace(f"@{context.bot.username}", "").strip()
+        # Ігноруємо якщо дякує сам собі
+        if mentioned_username == from_user.username:
+            continue
 
-            # Зберігаємо подяку
-            # to_user - спрощено, тільки username (без id бо mention не дає id)
-            class SimpleUser:
-                def __init__(self, username):
-                    self.id = None
-                    self.username = username
+        # Чистимо текст — видаляємо всі @mentions
+        thank_text = text
+        for m in mentions:
+            thank_text = thank_text.replace(f"@{m}", "")
+        thank_text = thank_text.strip()
 
-            save_thank(from_user, SimpleUser(mentioned_username), thank_text, message.chat_id)
+        # Зберігаємо подяку
+        class SimpleUser:
+            def __init__(self, u):
+                self.id = None
+                self.username = u
 
-            await message.reply_text(
-                f"💙 @{from_user.username} подякував @{mentioned_username}!\n"
-                f"«{thank_text}»\n\n"
-                f"Це збережено назавжди. /stats щоб побачити репутацію."
-            )
+        save_thank(from_user, SimpleUser(mentioned_username), thank_text, message.chat_id)
+
+        await message.reply_text(
+            f"💙 @{from_user.username} подякував @{mentioned_username}!\n"
+            f"«{thank_text}»\n\n"
+            f"Це збережено назавжди. /stats щоб побачити репутацію."
+        )
 
 # --- MAIN ---
 def main():
